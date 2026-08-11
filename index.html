@@ -199,26 +199,19 @@
     .print-page{width:100%}
     .pp-head{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #1f2733;padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
     .pp-head .pp-sub{font-size:11px;color:#5b6675;font-weight:600}
-    .pp-banner{display:flex;gap:6px;margin-bottom:6px}
-    .pbanner-card{flex:1;background:linear-gradient(135deg,#6e1e35,#451322);border:1.5px solid #c9a227;border-radius:8px;color:#fff;padding:10px 14px}
-    .pbc-top{display:flex;align-items:center;gap:8px;font-size:10px;color:#f0d9a0;margin-bottom:4px}
-    .pbc-ic{font-size:14px}
-    .pbc-side{font-weight:700;letter-spacing:.5px}
-    .pbc-title{font-size:14px;font-weight:800;line-height:1.3;color:#fff}
-    .pbc-brief{font-size:11px;color:#f3d9df;margin-top:5px;line-height:1.4}
-    .pp-rows{display:flex;flex-direction:column;gap:3px}
-    .pp-row{display:flex;gap:3px;position:relative;min-height:295px;align-items:stretch}
+    .pp-rows{display:flex;flex-direction:column;gap:4px}
+    .pp-row{display:flex;gap:3px;align-items:stretch}
     .pp-row.rev{flex-direction:row-reverse}
-    .pp-axis{position:absolute;left:0;right:0;top:147px;height:2px;background:#9aa3b0;z-index:1}
-    .pp-axis-l{position:absolute;top:135px;left:0;font-size:10px;color:#1c4fa0;font-weight:700;z-index:3;background:#fff;padding:0 4px}
-    .pp-axis-r{position:absolute;top:135px;right:0;font-size:10px;color:#a83232;font-weight:700;z-index:3;background:#fff;padding:0 4px}
+    .pp-row .axis-bar{position:absolute;left:0;right:0;height:1.5px;background:#9aa3b0;z-index:1}
     .pp-conn{font-size:9px;font-weight:700;color:#5b6675;padding:0;line-height:1;text-align:center;margin:1px 0}
     .pp-conn.right{align-self:flex-end;padding-right:6px} .pp-conn.left{align-self:flex-start;padding-left:6px}
-    .pcol{flex:1;display:flex;flex-direction:column;position:relative;z-index:2;min-width:0}
-    .pus{height:138px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:0 2px 4px}
-    .paxis{height:26px;display:flex;align-items:center;justify-content:center}
+    .pcol{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+    .pus{min-height:40px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:0 2px 4px}
+    .pcn{min-height:40px;display:flex;flex-direction:column;justify-content:flex-start;gap:4px;padding:4px 2px 0;flex:1}
+    .paxis{position:relative;height:22px;display:flex;align-items:center;justify-content:center;z-index:2}
     .paxis .dnum{background:#1f2733;color:#fff;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:999px}
-    .pcn{height:131px;display:flex;flex-direction:column;justify-content:flex-start;gap:4px;padding:4px 2px 0}
+    .axis-l{position:absolute;top:-6px;left:0;font-size:10px;color:#1c4fa0;font-weight:700;background:#fff;padding:0 4px;z-index:3}
+    .axis-r{position:absolute;top:-6px;right:0;font-size:10px;color:#a83232;font-weight:700;background:#fff;padding:0 4px;z-index:3}
     .pcard{border:1px solid #b8c1cf;border-radius:5px;padding:5px 6px;border-left-width:3px;background:#fff;page-break-inside:avoid}
     .pcard.us{border-left-color:#2f6fdb} .pcard.cn{border-left-color:#e08a8a;background:#fff7f7}
     .pcard.draft{border-style:dashed;border-left-style:solid;border-left-color:#9aa3b0;background:#f8f9fb}
@@ -227,6 +220,11 @@
     .pbrief{font-size:11.5px;line-height:1.35;margin-top:3px;font-weight:600;color:#1f2733}
     .pcard.cn .pbrief{color:#5a2828}
     .ptag{font-size:9px;color:#b8860b;margin-top:3px;font-weight:700;line-height:1.3}
+    /* 中美一轨对话：小尺寸，作为时间轴内的一列，介于 pus 和 paxis 之间 */
+    .pdialog-col{background:linear-gradient(135deg,#6e1e35,#451322);border:1.5px solid #c9a227;border-radius:6px;color:#fff;padding:6px 7px;margin:0 2px 3px;display:flex;flex-direction:column;gap:2px;align-self:flex-end}
+    .pdialog-col .pdc-top{display:flex;align-items:center;gap:5px;font-size:8.5px;color:#f0d9a0}
+    .pdialog-col .pdc-ic{font-size:11px}
+    .pdialog-col .pdc-title{font-size:10.5px;font-weight:800;line-height:1.25;color:#fff}
   }
   footer{text-align:center;color:#9aa3b0;font-size:11.5px;margin-top:18px;line-height:1.9;padding:0 22px}
 
@@ -874,45 +872,54 @@ function pcardPrint(e){
   const tag=getPairTag(e);
   return `<div class="pcard ${e.type}${e.draft?' draft':''}"><span class="pbadge ${e.badge}">${e.draft?'⏳拟议·':''}${e.agency}</span><div class="pbrief">${e.brief}</div>${tag?`<div class="ptag">${tag}</div>`:''}</div>`;
 }
-function pdialogBanner(e){
+function pdialogCol(e){
   const [y,m,dd]=e.date.split('-');
-  return `<div class="pbanner-card"><div class="pbc-top"><span class="pbc-ic">🤝</span><span class="pbc-date">${+m}.${+dd}</span><span class="pbc-side">中美一轨对话</span></div><div class="pbc-title">${e.title}</div><div class="pbc-brief">${e.brief}</div></div>`;
+  return `<div class="pdialog-col"><div class="pdc-top"><span class="pdc-ic">🤝</span><span>${+m}.${+dd} 一轨对话</span></div><div class="pdc-title">${e.title}</div></div>`;
 }
 function buildPrintPages(){
   const root=document.getElementById('printRoot'); root.innerHTML='';
   const ds=dates.slice();
-  // 把"纯对话日"从主行里抽出，放到顶部 banner 横排
-  const mainDates=[];
-  const dialogs=[];
-  ds.forEach(d=>{
-    const evs=byDate[d]||[];
-    const dlg=evs.filter(e=>e.type==='dialog');
-    const others=evs.filter(e=>e.type!=='dialog');
-    if(dlg.length && !others.length){ dialogs.push(dlg[0]); }
-    else mainDates.push(d);
-  });
-  // 主行: 27 个非对话节点分 3 行 (9+9+9)
-  const rows=[mainDates.slice(0,9),mainDates.slice(9,18),mainDates.slice(18,27)];
+  // S形 3 行，每行 10 节点（27+2对话=29 / 3 ≈ 10），剩余按需
+  // 实际更稳妥的分法：按时间顺序分 3 段
+  const total=ds.length;
+  const per=Math.ceil(total/3);
+  const rows=[ds.slice(0,per),ds.slice(per,2*per),ds.slice(2*per)];
   const page=document.createElement('div'); page.className='print-page';
-  page.innerHTML=`<div class="pp-head"><span>中美出口管制博弈时间线（2026年5月13日—8月11日）· 特朗普访华后至今</span><span class="pp-sub">🤝中美对话 · 🎯反制对应 · S形走线·单页A3横版</span></div>${dialogs.length?`<div class="pp-banner">${dialogs.map(pdialogBanner).join('')}</div>`:''}<div class="pp-rows"></div>`;
+  page.innerHTML=`<div class="pp-head"><span>中美出口管制博弈时间线（2026年5月13日—8月11日）· 特朗普访华后至今</span><span class="pp-sub">🤝中美对话内嵌 · 🎯反制对应 · S形走线·单页A3横版</span></div><div class="pp-rows"></div>`;
   const rowsEl=page.querySelector('.pp-rows');
   rows.forEach((chunk,ri)=>{
     if(!chunk.length) return;
     const row=document.createElement('div'); row.className='pp-row'+(ri===1?' rev':'');
-    row.innerHTML='<div class="pp-axis"></div><div class="pp-axis-l">▲ 美方</div><div class="pp-axis-r">中方 ▼</div>';
     chunk.forEach(d=>{
       const evs=byDate[d]||[];
+      const dialogs=evs.filter(e=>e.type==='dialog');
       const usE=evs.filter(e=>e.type==='us');
       const cnE=evs.filter(e=>e.type==='cn');
       const [y,m,dd]=d.split('-');
       const col=document.createElement('div'); col.className='pcol';
+      // 美方动作上方
       let h='<div class="pus">';
+      // 对话内嵌在 pus 区域底部（紧贴 paxis 上方，align-self:flex-end）
+      dialogs.forEach(e=>h+=pdialogCol(e));
       usE.forEach(e=>h+=pcardPrint(e));
-      h+='</div><div class="paxis"><span class="dnum">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</span></div><div class="pcn">';
+      // 美方无动作且无对话时，给个最小占位避免列坍塌
+      if(!usE.length && !dialogs.length) h+='<div style="min-height:30px"></div>';
+      h+='</div>';
+      h+='<div class="paxis"><span class="dnum">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</span></div>';
+      h+='<div class="pcn">';
       cnE.forEach(e=>h+=pcardPrint(e));
+      if(!cnE.length) h+='<div style="min-height:30px"></div>';
       h+='</div>';
       col.innerHTML=h; row.appendChild(col);
     });
+    // 该行的轴线（跨整行宽度）
+    const axisBar=document.createElement('div'); axisBar.className='axis-bar';
+    // 轴线在该行最高列的中部（约一半高度）
+    axisBar.style.top='50%'; axisBar.style.transform='translateY(-50%)';
+    row.appendChild(axisBar);
+    // 左右"▲美方 / 中方▼"标签
+    const al=document.createElement('div'); al.className='axis-l'; al.textContent='▲ 美方'; row.appendChild(al);
+    const ar=document.createElement('div'); ar.className='axis-r'; ar.textContent='中方 ▼'; row.appendChild(ar);
     rowsEl.appendChild(row);
     if(ri<rows.length-1 && rows[ri+1]&&rows[ri+1].length){
       const conn=document.createElement('div'); conn.className='pp-conn '+(ri===0?'right':'left'); conn.textContent='▼ 续下行'; rowsEl.appendChild(conn);
