@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中美出口管制博弈时间线 · 2026年5月—8月（横轴版）</title>
+<style>
+  :root{
+    --bg1:#eef2f7; --bg2:#f7f9fc; --ink:#1f2733; --muted:#5b6675;
+    --line:#cdd6e4; --card:#ffffff;
+    --us:#2f6fdb; --us-soft:#e8f0fe; --us-deep:#1c4fa0;
+    --cn:#e08a8a; --cn-soft:#fdeeee; --cn-deep:#a83232; --cn-bg:#fff7f7;
+    --dg1:#6e1e35; --dg2:#451322; --gold:#c9a227;
+    --shadow:0 6px 22px rgba(31,39,51,.08); --shadow2:0 10px 30px rgba(31,39,51,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;color:var(--ink);line-height:1.6;background:linear-gradient(180deg,var(--bg1),var(--bg2));-webkit-font-smoothing:antialiased}
+  .wrap{max-width:100%;margin:0 auto;padding:0 0 60px}
+  header{padding:40px 22px 18px;text-align:center}
+  header h1{font-size:28px;font-weight:800;letter-spacing:.5px}
+  header h1 .us-t{color:var(--us-deep)} header h1 .cn-t{color:var(--cn-deep)}
+  header .sub{color:var(--muted);margin-top:9px;font-size:14.5px}
+  header .range{display:inline-block;margin-top:13px;padding:5px 16px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12.5px;color:var(--muted)}
+  header .range b{color:var(--ink)}
+  .legend{display:flex;gap:11px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  .legend span{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:5px 11px;border-radius:999px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.us{background:var(--us)} .dot.cn{background:var(--cn)} .dot.dg{background:var(--dg1);border:1.5px solid var(--gold)}
+
+  .filters{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:16px 0 4px;padding:0 22px}
+  .chip{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--muted);padding:5px 12px;border-radius:999px;font-size:12px;transition:.18s;user-select:none}
+  .chip:hover{border-color:var(--us);color:var(--us-deep)}
+  .chip.on{background:var(--us);border-color:var(--us);color:#fff}
+  .chip.cn.on{background:var(--cn-deep);border-color:var(--cn-deep)}
+  .chip.dg.on{background:var(--dg1);border-color:var(--dg1)}
+
+  .scrollbar-hint{text-align:center;color:#9aa3b0;font-size:11.5px;margin:6px 0 2px}
+  .scrollbar-hint b{color:var(--us-deep)}
+
+  /* === Horizontal timeline === */
+  .twrap{overflow-x:auto;overflow-y:hidden;padding:18px 0 26px;position:relative}
+  .twrap::-webkit-scrollbar{height:11px}
+  .twrap::-webkit-scrollbar-track{background:#e9eef5;border-radius:6px}
+  .twrap::-webkit-scrollbar-thumb{background:#b9c4d4;border-radius:6px}
+  .twrap::-webkit-scrollbar-thumb:hover{background:var(--us)}
+  .timeline{position:relative;display:flex;min-width:max-content;height:660px;padding:0 24px}
+  .axis-line{position:absolute;left:0;right:0;top:312px;height:4px;background:linear-gradient(90deg,var(--gold),var(--line) 6%,var(--line) 94%,var(--gold));border-radius:4px;z-index:1;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .axis-cap{position:absolute;top:296px;font-size:11px;font-weight:700;color:var(--us-deep);background:#fff;padding:2px 8px;border:1px solid var(--line);border-radius:5px;z-index:3}
+  .axis-cap.l{left:8px;color:var(--us-deep)} .axis-cap.r{right:8px;color:var(--cn-deep)}
+
+  .col{width:248px;flex:0 0 248px;display:flex;flex-direction:column;position:relative;z-index:2;border-right:1px dashed #dfe5ee}
+  .col:last-child{border-right:none}
+  .zone{padding:0 9px;display:flex;flex-direction:column;gap:9px}
+  .us-zone{height:296px;justify-content:flex-end;padding-bottom:14px}
+  .cn-zone{height:296px;justify-content:flex-start;padding-top:14px}
+  .axis-zone{height:64px;position:relative;display:flex;align-items:center;justify-content:center}
+  .date-mark{background:var(--ink);color:#fff;font-size:12px;font-weight:700;padding:3px 11px;border-radius:999px;white-space:nowrap;position:relative;z-index:4;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+  .date-mon{position:absolute;top:42px;font-size:10.5px;color:var(--muted);letter-spacing:1px}
+
+  /* cards */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 12px;box-shadow:var(--shadow);cursor:pointer;transition:.16s;border-left-width:4px;min-height:74px}
+  .card:hover{box-shadow:var(--shadow2);transform:translateY(-2px)}
+  .card.us{border-left-color:var(--us)}
+  .card.cn{border-left-color:var(--cn);background:var(--cn-bg)}
+  .card.draft{border-style:dashed;border-left-style:solid;border-left-color:#9aa3b0;background:#f8f9fb}
+  .card.draft .badge{background:#eef1f6;color:#5b6675}
+  .card.draft .cbrief{color:#5b6675}
+  .card.dim{opacity:.25;filter:grayscale(.6)}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;display:inline-block}
+  .badge.us{background:var(--us-soft);color:var(--us-deep)}
+  .badge.cn{background:var(--cn-soft);color:var(--cn-deep)}
+  .cbrief{font-size:13px;margin-top:6px;font-weight:600;color:var(--ink);line-height:1.45}
+  .card.cn .cbrief{color:#5a2828}
+  .chint{font-size:10.5px;color:#9aa3b0;margin-top:5px}
+
+  /* dialog column */
+  .dcol{width:248px;flex:0 0 248px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;padding:18px 12px;position:relative;z-index:2;border-right:1px dashed #dfe5ee}
+  .dband{background:linear-gradient(150deg,var(--dg1),var(--dg2));border:1px solid rgba(201,162,39,.45);border-radius:14px;padding:16px 14px;color:#fff;cursor:pointer;box-shadow:0 10px 26px rgba(110,30,53,.3);position:relative;overflow:hidden;transition:.16s}
+  .dband::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--gold),#8a6b15)}
+  .dband:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(110,30,53,.38)}
+  .dband .dic{font-size:22px}
+  .dband .dt{font-size:14px;font-weight:800;margin-top:6px;line-height:1.35}
+  .dband .db{font-size:11.5px;color:#f3d9df;margin-top:7px;line-height:1.5}
+  .dband .dd{font-size:11px;color:#f0d9a0;margin-top:9px;border-top:1px solid rgba(255,255,255,.18);padding-top:7px}
+
+  /* connector ticks from card to axis */
+  .tick{position:absolute;left:50%;width:2px;background:var(--line);transform:translateX(-50%);z-index:1}
+  .us-zone .tick{display:none} .cn-zone .tick{display:none}
+
+  /* === Drawer === */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:440px;max-width:92vw;background:#fff;box-shadow:-12px 0 40px rgba(31,39,51,.22);z-index:200;transform:translateX(110%);transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid var(--line)}
+  .drawer.open{transform:translateX(0)}
+  .drawer-head{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#f7f9fc,#eef2f7)}
+  .drawer-head .dh-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px}
+  .drawer-head .dh-badge.us{background:var(--us-soft);color:var(--us-deep)}
+  .drawer-head .dh-badge.cn{background:var(--cn-soft);color:var(--cn-deep)}
+  .drawer-head .dh-badge.dg{background:var(--dg1);color:#fff}
+  .drawer-head .dh-title{flex:1;font-size:14px;font-weight:700;color:var(--ink);line-height:1.4}
+  .drawer-head .dh-close{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;width:30px;height:30px;border-radius:6px;line-height:1}
+  .drawer-head .dh-close:hover{background:#eef1f6;color:var(--ink)}
+  .drawer-body{flex:1;overflow-y:auto;padding:18px 20px 24px}
+  .drawer-empty{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#9aa3b0;font-size:13px;line-height:1.9;padding:0 30px}
+
+  .spec{background:#fff;border:1px solid #e6ecf5;border-radius:9px;padding:10px 13px;margin-bottom:12px}
+  .spec.dg-spec{border-color:#ead9a8;background:#fffdf6}
+  .spec-row{display:flex;gap:9px;font-size:12.8px;padding:3px 0;align-items:flex-start}
+  .spec-row .sl{flex:0 0 50px;font-weight:700;color:var(--muted);font-size:11.5px;padding-top:1px}
+  .spec-row .sv{flex:1;color:#2a3340}
+  .spec-row .sv b{color:var(--us-deep)}
+  .drawer.cn-side .spec-row .sv b{color:var(--cn-deep)}
+
+  .ana{background:linear-gradient(135deg,#f5f8ff,#eef3fc);border-left:3px solid var(--us);border-radius:0 8px 8px 0;padding:11px 13px;margin-bottom:12px}
+  .drawer.cn-side .ana{background:linear-gradient(135deg,#fff4f4,#fdeaea);border-left-color:var(--cn)}
+  .drawer.dg-side .ana{background:linear-gradient(135deg,#fbf6ea,#f6ecd2);border-left-color:var(--gold)}
+  .ana .ah{font-size:11px;font-weight:700;color:var(--us-deep);letter-spacing:.5px;display:block;margin-bottom:4px}
+  .drawer.cn-side .ana .ah{color:var(--cn-deep)}
+  .drawer.dg-side .ana .ah{color:#8a6b15}
+  .ana p{font-size:13.2px;color:#36404f}
+  .drawer.cn-side .ana p{color:#5a3030}
+
+  .quote{border-left:3px solid var(--gold);background:#fffdf6;padding:10px 13px;border-radius:0 8px 8px 0;font-size:13px;color:#5a4a1a;margin-bottom:11px}
+  .quote .qlabel{font-size:10.5px;font-weight:700;color:var(--gold);letter-spacing:.5px;display:block;margin-bottom:3px}
+  .src{font-size:11.5px;color:#8a93a1;line-height:1.7}
+  .src a{color:var(--us-deep);text-decoration:none;word-break:break-all}
+  .drawer.cn-side .src a{color:var(--cn-deep)}
+  .src a:hover{text-decoration:underline}
+
+  .multi-title{font-size:13px;font-weight:800;color:var(--cn-deep);margin:2px 0 11px;padding-bottom:6px;border-bottom:1px solid #f0dada}
+  .subitem{border:1px solid #f0dada;border-radius:9px;padding:12px 13px;margin-bottom:13px;background:#fff}
+  .subitem:last-child{margin-bottom:0}
+  .sub-h{font-size:12px;font-weight:700;color:var(--cn-deep);margin-bottom:9px;background:var(--cn-soft);display:inline-block;padding:3px 9px;border-radius:5px}
+
+  .dgspace{margin-bottom:14px}
+  .dgspace .dlbl{font-size:11px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:5px;display:inline-block;margin-bottom:7px}
+  .dgspace.cn .dlbl{background:var(--cn-soft);color:var(--cn-deep)}
+  .dgspace.us .dlbl{background:var(--us-soft);color:var(--us-deep)}
+  .dgspace .dtext{font-size:13px;color:#36404f;line-height:1.65;background:#fbfcfe;border:1px solid #eef1f6;border-radius:8px;padding:10px 13px}
+
+  .drawer-sec-h{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;margin:16px 0 8px;text-transform:uppercase}
+  .ctrls{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0 2px;padding:0 22px}
+  .toggle-arcs{display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--muted);padding:5px 13px;border-radius:999px;font-size:12px;user-select:none;transition:.18s}
+  .toggle-arcs:hover{border-color:var(--gold)}
+  .toggle-arcs.on{background:var(--gold);border-color:var(--gold);color:#fff}
+  .arc-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+  .arc-legend span{display:inline-flex;align-items:center;gap:6px}
+  .arc-legend i{width:20px;height:3px;border-radius:2px;display:inline-block}
+  .arcs-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:1}
+  .arc-path{fill:none;stroke-width:2;opacity:.5;transition:opacity .18s,stroke-width .18s}
+  .arc-path.hot{opacity:1;stroke-width:3.6}
+  .card.paired{position:relative}
+  .card.paired::after{content:"🎯";position:absolute;top:5px;right:6px;font-size:10px;opacity:.7}
+  .card.hl{box-shadow:0 0 0 3px var(--gold),0 10px 30px rgba(31,39,51,.16)!important}
+  /* === 竖屏(纵向)模式 === */
+  body.vmode .twrap{overflow:visible;padding:8px 0}
+  body.vmode .scrollbar-hint{display:none}
+  .tlv{position:relative;margin:20px auto 0;padding:10px 0;max-width:1000px}
+  .tlv::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;transform:translateX(-50%);background:linear-gradient(180deg,var(--gold),var(--line) 10%,var(--line) 90%,var(--gold));border-radius:3px}
+  .vrow{position:relative;display:grid;grid-template-columns:1fr 88px 1fr;gap:0;align-items:stretch;margin:14px 0}
+  .vlane{padding:0 14px}
+  .us-vlane{text-align:right} .cn-vlane{text-align:left}
+  .us-vlane .card{margin-left:auto;max-width:430px} .cn-vlane .card{max-width:430px}
+  .us-vlane .card::after,.cn-vlane .card::after{content:"";position:absolute;top:18px;width:14px;height:2px;background:var(--line)}
+  .us-vlane .card::after{right:-15px} .cn-vlane .card::after{left:-15px}
+  .us-vlane .card::before,.cn-vlane .card::before{content:"";position:absolute;top:14px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--line)}
+  .us-vlane .card::before{right:-21px;background:var(--us)} .cn-vlane .card::before{left:-21px;background:var(--cn)}
+  .vaxis{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14px;position:relative;z-index:2}
+  .vaxis .dnum{background:var(--ink);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .vaxis .dmon{color:var(--muted);font-size:11px;margin-top:5px}
+  .vdrow{position:relative;margin:16px 0;background:linear-gradient(135deg,var(--dg1),var(--dg2));border-radius:14px;box-shadow:0 10px 28px rgba(110,30,53,.28);overflow:hidden;border:1px solid rgba(201,162,39,.4);cursor:pointer}
+  .vdrow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,var(--gold),#8a6b15)}
+  .vdhead{display:flex;align-items:center;gap:10px;padding:13px 20px 13px 24px;color:#fff}
+  .vdhead .dic{font-size:22px} .vdhead .dt{flex:1} .vdhead .dt h3{font-size:15px;font-weight:800} .vdhead .dt .dbrief{font-size:12px;color:#f3d9df;margin-top:3px}
+  .vddate{font-size:11px;color:#f0d9a0;background:rgba(255,255,255,.12);padding:4px 10px;border-radius:999px;border:1px solid rgba(201,162,39,.5);white-space:nowrap}
+  @media(max-width:760px){
+    .tlv{max-width:100%} .tlv::before{display:none}
+    .vrow{display:block;margin:10px 0}
+    .vaxis{display:inline-block;padding:0 0 6px;position:relative}
+    .vlane{padding:0;text-align:left}
+    .us-vlane .card,.cn-vlane .card{margin:0 0 8px;max-width:none}
+    .us-vlane .card::after,.us-vlane .card::before,.cn-vlane .card::after,.cn-vlane .card::before{display:none}
+    body.vmode .arcs-svg{display:none!important}
+    body.vmode #toggleArcs,body.vmode .arc-legend{display:none!important}
+  }
+  #printRoot{display:none}
+  @media print{
+    @page{size:A3 landscape;margin:8mm}
+    body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .wrap{display:none!important}
+    #printRoot{display:block!important}
+    .print-page{width:100%}
+    .pp-head{font-size:12px;font-weight:700;margin-bottom:4px;border-bottom:2px solid #1f2733;padding-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+    .pp-head .pp-sub{font-size:10px;color:#5b6675;font-weight:600}
+    .pp-rows{display:flex;flex-direction:column;gap:2px}
+    .pp-row{display:flex;gap:3px;position:relative;min-height:320px;align-items:stretch}
+    .pp-row.rev{flex-direction:row-reverse}
+    .pp-axis{position:absolute;left:0;right:0;top:158px;height:2px;background:#cdd6e4;z-index:1}
+    .pp-axis-l{position:absolute;top:143px;left:0;font-size:8.5px;color:#1c4fa0;font-weight:700;z-index:3}
+    .pp-axis-r{position:absolute;top:143px;right:0;font-size:8.5px;color:#a83232;font-weight:700;z-index:3}
+    .pp-conn{font-size:7.5px;font-weight:700;color:#1c4fa0;padding:0;line-height:1}
+    .pp-conn.right{align-self:flex-end} .pp-conn.left{align-self:flex-start}
+    .pcol{flex:1;display:flex;flex-direction:column;position:relative;z-index:2;min-width:0}
+    .pus{height:148px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:0 2px 5px}
+    .paxis{height:24px;display:flex;align-items:center;justify-content:center}
+    .paxis .dnum{background:#1f2733;color:#fff;font-size:8.5px;font-weight:700;padding:2px 5px;border-radius:999px}
+    .pcn{height:148px;display:flex;flex-direction:column;justify-content:flex-start;gap:4px;padding:5px 2px 0}
+    .pcard{border:1px solid #cdd6e4;border-radius:5px;padding:4px 5px;border-left-width:3px;background:#fff;page-break-inside:avoid}
+    .pcard.us{border-left-color:#2f6fdb} .pcard.cn{border-left-color:#e08a8a;background:#fff7f7}
+    .pcard.draft{border-style:dashed;border-left-style:solid;border-left-color:#9aa3b0;background:#f8f9fb}
+    .pbadge{font-size:7.5px;font-weight:700;padding:1px 3px;border-radius:3px;display:inline-block}
+    .pbadge.us{background:#e8f0fe;color:#1c4fa0} .pbadge.cn{background:#fdeeee;color:#a83232}
+    .pbrief{font-size:8.8px;line-height:1.3;margin-top:2px;font-weight:600;color:#1f2733}
+    .pcard.cn .pbrief{color:#5a2828}
+    .ptag{font-size:7px;color:#b8860b;margin-top:2px;font-weight:700;line-height:1.25}
+    .pdialog{flex:1;background:linear-gradient(135deg,#6e1e35,#451322);border-radius:7px;color:#fff;padding:8px;margin:0 2px;border:1px solid #c9a227;display:flex;flex-direction:column;justify-content:center}
+    .pdialog .dic{font-size:16px} .pdialog .dt{font-size:9px;font-weight:800;margin-top:4px;line-height:1.3} .pdialog .db{font-size:7.5px;color:#f3d9df;margin-top:5px;line-height:1.4} .pdialog .dd{font-size:7px;color:#f0d9a0;margin-top:5px}
+  }
+  footer{text-align:center;color:#9aa3b0;font-size:11.5px;margin-top:18px;line-height:1.9;padding:0 22px}
+
+  @media(max-width:760px){
+    .drawer{width:100vw}
+    header h1{font-size:21px}
+    .timeline{height:600px}
+    .col,.dcol{width:220px;flex:0 0 220px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="us-t">美国</span> ✕ <span class="cn-t">中国</span> 出口管制博弈时间线</h1>
+    <div class="sub">特朗普 5 月访华后至今 · 横轴版（轴上方＝美方 · 轴下方＝中方 · 轴上＝中美一轨对话）</div>
+    <div class="range">时间范围：<b>2026年5月13日 — 2026年8月11日</b>　·　数据截至 2026年8月11日</div>
+    <div class="legend">
+      <span><i class="dot us"></i>美方动作（轴上方）</span>
+      <span><i class="dot cn"></i>中方动作·浅红（轴下方）</span>
+      <span><i class="dot dg"></i>中美一轨对话（轴上·深酒红通栏）</span>
+      <span>💡 点击事件在右侧抽屉查看：规范信息 + 逐条分析 + 原文 + 来源</span>
+    </div>
+  </header>
+
+  <div class="filters" id="filters">
+    <span class="chip on" data-f="all">全部</span>
+    <span class="chip dg" data-f="dialog">🤝 中美对话</span>
+    <span class="chip" data-f="us">🇺🇸 美方</span>
+    <span class="chip cn" data-f="cn">🇨🇳 中方</span>
+    <span class="chip" data-f="bis">BIS</span>
+    <span class="chip" data-f="fcc">FCC</span>
+    <span class="chip" data-f="ofac">OFAC</span>
+    <span class="chip" data-f="dod">国防部</span>
+    <span class="chip" data-f="dhs">国土安全部</span>
+    <span class="chip" data-f="ustr">USTR/232</span>
+    <span class="chip cn" data-f="mofcom">商务部</span>
+  </div>
+
+  <div class="scrollbar-hint">⇆ 横向滚动浏览时间线（鼠标滚轮上下即左右滚动）· 共 <b>26</b> 个日期节点 · <b>2</b> 场一轨对话 · <b>31</b> 项动作（OFAC已按"贸易金融网络/影子舰队"2组归并；含贸易救济类如碧根果反倾销）· 数据截至 2026-08-11</div>
+  <div class="ctrls">
+    <span class="toggle-arcs on" id="toggleArcs">🎯 显示反制对应关系</span>
+    <span class="arc-legend">
+      <span><i style="background:#0f766e"></i>反制1260H涉军清单</span>
+      <span><i style="background:#92400e"></i>反制6月半导体升级</span>
+      <span><i style="background:#7c3aed"></i>反制FCC(7/28)</span>
+      <span><i style="background:#ea580c"></i>反制涉疆清单(7/31)</span>
+      <span><i style="background:#0369a1"></i>回应多晶硅232(8/6)</span>
+    </span>
+    <span class="toggle-arcs" id="printBtn" style="background:#1c4fa0;color:#fff;border-color:#1c4fa0">🖨️ 打印A3横版</span>
+    <span class="toggle-arcs" id="modeBtn">📱 切竖屏</span>
+  </div>
+
+  <div class="twrap" id="twrap">
+    <div class="timeline" id="timeline">
+      <div class="axis-line"></div>
+      <div class="axis-cap l">▲ 美方动作</div>
+      <div class="axis-cap r">中方动作 ▼</div>
+    </div>
+  </div>
+
+  <footer>
+    动作部分均引述官网及权威媒体原文（含 FCC 官网一手英文原文）；逐条分析基于财经杂志、南方周末、走出去智库、合规观澜、金杜、Crowell、JD Supra 等权威信源综合研判，仅供参考<br>
+    交互：横向滚动浏览 · 点击事件打开右侧详情抽屉 · 顶部可按类型与部门筛选 · 制图/分析 2026-08-10
+  </footer>
+</div>
+
+<!-- Drawer -->
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <span class="dh-badge" id="dhBadge"></span>
+    <span class="dh-title" id="dhTitle"></span>
+    <button class="dh-close" id="dhClose">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-empty" id="drawerEmpty">点击时间线上的任意事件<br>查看规范信息 · 逐条分析 · 原文 · 来源</div>
+</div>
+
+<div id="printRoot"></div>
+
+<script>
+const EVENTS=[
+{date:"2026-05-14",type:"dialog",cat:"dialog",
+ title:"中美元首北京会晤 · 特朗普国事访华（5月13—15日）",
+ brief:"确立'中美建设性战略稳定关系'新定位；设贸易/投资理事会、启动对等降税、习近平秋季访美",
+ 分析:"确立未来3年关系新定位与'四个稳定'框架，并设贸易/投资理事会、启动对等降税。既是'护栏'也为后续博弈提供框架——但访华后不足20天美方即出手，显示'框架'与'加压'并行。",
+ cn:{label:"中方通稿（王毅介绍）",text:"两国元首同意将'中美建设性战略稳定关系'作为两国关系新定位，为未来3年乃至更长时间的中美关系作出战略指引。'建设性战略稳定'应该是合作为主的积极稳定、竞争有度的良性稳定、分歧可控的常态稳定、和平可期的持久稳定。两国经贸团队达成总体平衡积极成果，同意成立贸易理事会和投资理事会，在对等降税框架下推动扩大双向贸易。应特朗普总统邀请，习近平主席将于今年秋季对美国进行国事访问。",src:"外交部官网（王毅向媒体介绍）",url:"https://www.mfa.gov.cn/wjbz_673089/zyjh_673099/202605/t20260515_11911513.shtml"},
+ us:{label:"美方通稿（特朗普表态）",text:"我愿同习主席一道，加强沟通合作，妥善解决分歧，开启有史以来最好的美中关系，开创两国更加美好的未来。此次访华是一次非常成功的访问，举世瞩目，令人难忘。'美中关系很重要，一定会越来越好。'热情期待在华盛顿接待习近平主席。",src:"央视新闻/新华社（特朗普讲话）",url:"https://www.toutiao.com/article/7640355954416026112/"}},
+
+{date:"2026-05-19",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"将苏州敏芯、无锡芯感智半导体列入实体清单（MEMS压力传感器代工）",
+ 依据:"《出口管理条例》(EAR) 实体清单",
+ 行动:"将2家MEMS压力传感器代工厂列入实体清单，禁止美企向其出口EDA工具、特种电子气体、8英寸以上晶圆光刻设备，即日生效。",
+ 分析:"把管制从成品芯片向'代工环节+上游工具'延伸，意在削弱中国MEMS中高端产能。点名代工厂可同时卡住下游车规/医疗级传感器流片，属'掐产能'式精准打击。",
+ 原文:"根据BIS公开文件，此次列管明确禁止美国企业向上述两家机构出口或再出口EDA设计工具、特种电子级气体（如硅烷、磷烷等），以及适用于8英寸及以上晶圆制程的光刻设备及相关技术。该措施即日生效。",
+ 来源:"传感器行业网（转BIS公开文件）",url:"https://www.chuanganqi.sx.cn/news/xingyexinwen/meiguoshangwubukuodashitiqingdan_liangjiazhongguoMEMSyalichuanganqidaigongchangbeilieguan.html"},
+
+{date:"2026-06-01",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"新指引：向中国实体（含境外子公司）出口先进计算芯片须获许可，堵第三国采购漏洞",
+ 依据:"EAR 出口许可指引（执法补丁）",
+ 行动:"要求向总部位于中国的实体（不论运营地）出口先进计算芯片均须获出口许可证，封堵借第三国子公司采购英伟达Blackwell等AI芯片的漏洞。",
+ 分析:"封堵'第三国子公司采购'漏洞，是'穿透式管辖'典型——以总部所在地而非运营地界定管辖，体现最小占比/外国直接产品规则之外的执法补丁逻辑。",
+ 原文:"6月1日，美国商务部工业与安全局(BIS)发布新指引，明确要求向总部位于中国的实体（无论其实际运营地点在何处）出口先进计算芯片时，均须获得出口许可证。此举旨在封堵此前存在一年的'监管漏洞'——该漏洞使得中国企业可能通过在马来西亚等第三国的子公司采购英伟达Blackwell等最先进AI芯片。",
+ 来源:"雪球（综合芯片行业供应链信息）",url:"https://xueqiu.com/3210340033/397230976"},
+
+{date:"2026-06-08",type:"us",cat:"dod",agency:"国防部 DOD",badge:"us",
+ brief:"更新1260H'中国军事企业清单'，共纳入188家中企（阿里、百度、比亚迪、宇树科技等）",
+ 依据:"《2021财年国防授权法》第1260H条",
+ 行动:"更新'在美国运营的中国军事企业'名单，将阿里、百度、比亚迪、药明康德、宇树科技、蔚来、京东方、中创新航、亿纬锂能等共188家中国实体列入；国防部不得与其签合同，2027年起扩大至禁止第三方采购。",
+ 分析:"1260H本身不构成立即制裁，但具'信号—声誉—采购'三重效应。把阿里、比亚迪等民用龙头纳入，标志'涉军'概念被泛化为民用科技打压工具；访华不到20天即公布，意在积累谈判筹码。",
+ 原文:"2026年6月8日，美国五角大楼根据《国防授权法》第1260H条款更新'中国军工企业'名单，将阿里巴巴、百度、比亚迪、药明康德、宇树科技等188家中国实体列入。名单虽不构成立即制裁，但根据美国法律，美国国防部将被禁止与名单上的企业直接签订合同；从2027年起，将扩大至美国国防部被禁止通过第三方采购这些企业的产品或服务。",
+ 来源:"腾讯新闻（综合1260H条款、商务部公告、联合早报等）",url:"https://new.qq.com/rain/a/20260722A0DSTN00"},
+
+{date:"2026-06-10",type:"us",cat:"ofac",agency:"财政部 OFAC",badge:"us",
+ brief:"OFAC涉伊朗贸易与金融网络制裁（6/10+7/10两轮，共22个对象）",
+ 依据:"伊朗相关制裁项目 / SDN清单 / 第13902号行政令",
+ 行动:"6/10以涉伊朗贸易为由将4家中国企业+4名个人列入SDN；7/10对14名个人/实体（伊朗最高领导层金融网络）实施制裁。两轮均资产冻结、涉二级制裁风险。",
+ 分析:"两轮均借伊朗议题对华金融施压，属'长臂+二级制裁'组合。6/10瞄准涉伊贸易中介，7/10上溯至伊朗最高领导层金融网络，呈'由贸易到金融、由中介到核心'递进；向全球金融机构传递'与这些中企交易即涉险'的寒蝉信号。",
+ 多条:true,
+ items:[
+  {h:"6/10 · 涉伊朗贸易制裁（4企+4人）",依据:"伊朗相关制裁项目 / SDN清单",行动:"以涉伊朗贸易为由将4家中国企业（DOMUS TRADING HK、慕斯达上海、商順國際香港、SOLOS INTERNATIONAL）及4名个人列入SDN清单，资产冻结。",分析:"以'涉伊朗'为由的次级制裁，借伊朗议题扩展对华金融施压，属'长臂+二级制裁'组合，向全球金融机构传递'与这些中企交易即涉险'的寒蝉信号。",原文:"当地时间2026年6月10日，美国财政部外国资产控制办公室(OFAC)以涉伊朗贸易为由将4家中国企业和4名个人列入SDN清单实施制裁。",来源:"四川省商务厅（涉外法律服务信息）",url:"https://swt.sc.gov.cn/sccom/c25030602/2026/6/18/fde1bd53070b43089c91c805ed687750.shtml"},
+  {h:"7/10 · 伊朗领导层金融网络制裁（14个对象）",依据:"伊朗相关制裁项目 / SDN清单",行动:"对14名个人及实体实施新一轮伊朗相关制裁，针对伊朗最高领导层相关金融网络及境外资金运作体系。",分析:"针对伊朗最高领导层金融网络的精准打击，向德黑兰施压的同时压缩中伊金融通道，配合7月系列涉伊制裁形成'组合拳'。",原文:"7月10日，OFAC刚刚宣布对14名个人及实体实施新一轮伊朗相关制裁，主要针对伊朗最高领导层相关金融网络及境外资金运作体系。",来源:"同花顺（航宝）",url:"https://m.10jqka.com.cn/20260715/c678193033.shtml"}
+ ]},
+
+{date:"2026-06-12",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"修订EAR：3家AI推理/Chiplet设计公司入清单，7nm以下EDA工具实施许可",
+ 依据:"EAR修订 / 实体清单 + 许可要求",
+ 行动:"将3家AI推理芯片与Chiplet架构中国设计公司列入实体清单；对7nm以下逻辑芯片设计用高精度EDA工具（物理验证、功耗签核、3D堆叠协同仿真）实施许可要求，审批窗口延至90天。",
+ 分析:"把管制从'芯片成品'上移到'设计工具'，意在锁死7nm以下先进制程设计能力。实体清单+EDA许可双管齐下，从'禁产品'升级为'禁造产品的能力'。",
+ 原文:"On June 12, 2026, BIS updated the EAR… added three Chinese design companies specializing in AI inference chips and chiplet architecture to the Entity List… imposed license requirements on certain high-precision EDA tools used for sub-7nm logic chip design.",
+ 来源:"奇帅（转BIS EAR更新）",url:"https://www.qishuai-cn.com/news/Integrated_Circuits/High_Precision_IC_Design_Tools_EDA_/BIS_Expands_Entity_List_and_Tightens_EDA_Licensing.html"},
+
+{date:"2026-06-14",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"对140家企业实施新出口限制（含拓荆、芯源微、北方华创），新增24类设备+3种软件管制",
+ 依据:"EAR实体清单 + 设备/软件管制新规",
+ 行动:"将含拓荆科技、芯源微、北方华创等140家企业列入实体清单（日韩新加坡部分实体受波及）；新增24类芯片制造设备与3种半导体软件工具管制。",
+ 分析:"一次性覆盖设计、制造、设备、软件四环节，搭建'三面围堵'。点名国产设备商意在堵死本土化突破路径，是'全链条监管'的集中落地。",
+ 原文:"6月14日，美国政府宣布对140家企业实施新的出口限制。被列入'实体清单'的中国企业包括芯片制造商拓荆科技和芯源微，以及芯片设备制造商北方华创……新规涵盖24类芯片制造设备和3种用于开发或生产半导体的软件工具。",
+ 来源:"雪球",url:"https://xueqiu.com/3210340033/397230976"},
+
+{date:"2026-06-16",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"暂缓将含DeepSeek等75家中企列入实体清单（'临门刹车'）",
+ 依据:"EAR实体清单（暂缓执行）",
+ 行动:"暂缓将含深度求索(DeepSeek)等75家已走完审批流程的中国企业列入实体清单，以避免中美贸易紧张进一步升级。",
+ 分析:"审批已完成却'临门刹车'，反映美方内部'加压派'与'稳经贸派'的拉锯，亦是对'斗而不破'框架的维护——留作后续谈判筹码，而非真正放手。",
+ 原文:"美国商务部在6月16日被曝已暂缓将包括深度求索(DeepSeek)在内的75家中国企业列入实体清单，以避免中美贸易紧张关系进一步升级。据路透社披露，这批企业的审批流程其实已走完，只差最后一步公布。",
+ 来源:"雪球（转路透社）",url:"https://xueqiu.com/3210340033/397230976"},
+
+{date:"2026-06-13",type:"cn",cat:"other-cn",agency:"外交部",badge:"cn",
+ brief:"警告美方立即纠正错误、停止无理打压，否则后果自负（针对1260H清单）",
+ 依据:"外交交涉",
+ 行动:"就美方6/8更新1260H清单将188家中企列入，外交部警告美方立即纠正错误、停止无理打压，否则全部后果由美方自行承担。",
+ 分析:"反制落地前的外交'定调'，既向美方划红线，也为后续具体反制做道义铺垫，体现'先礼后兵'节奏。",
+ 原文:"6月13日，外交部明令警告美方立刻纠正错误、停止无理打压，否则全部后果由美方自行承担。",
+ 来源:"中华网",url:"https://kan.china.com/article/5898207_all.html?d=589820721"},
+
+{date:"2026-06-20",type:"cn",cat:"mofcom",agency:"商务部",badge:"cn",
+ brief:"重新实施镓、锗、锑等关键半导体材料对美出口禁令（占全球镓94%/锗83%）",
+ 依据:"《出口管制法》/ 2024年第46号公告第二款（重启）",
+ 行动:"对镓、锑、锗等关键半导体材料实施对美出口禁令（该款曾于2025年11月暂停至2026年11月27日作访华善意，此次因美方半导体升级重新实施）。",
+ 分析:"把关键矿物作为博弈杠杆——2025.11主动暂停作善意，6.20因半导体升级而重启。中国占全球镓94%/锗83%，'暂停—重启'开合既留谈判余地又保留施压筹码，体现'以打促谈'节奏感。",
+ 原文:"作为反制，中国于6月20日宣布对镓、锑、锗等关键半导体材料实施对美出口禁令。中国占全球镓产量的94%、锗产量的83%。分析人士指出，中美在芯片领域的博弈正从单一的技术封锁演变为涉及设备、软件、材料的多维度'全链条对抗'。",
+ 来源:"雪球",url:"https://xueqiu.com/3210340033/397230976"},
+
+{date:"2026-06-20",type:"us",cat:"bis",agency:"白宫/商务部",badge:"us",
+ brief:"要求Anthropic限制Claude Fable5/Mythos5等先进AI模型对外国公民开放（6月底解除）",
+ 依据:"AI模型出口管制（行政令）",
+ 行动:"要求AI公司Anthropic限制Claude Fable5、Mythos5等先进AI模型向外国公民开放，Anthropic随后暂停服务；6月底解除限制、服务恢复。",
+ 分析:"管制对象首次从硬件延伸至'AI模型本身'的对外服务，标志监管边界进入'模型/算法'层。短暂解除则显示美方在试探可控边界，避免过度刺激中美AI产业合作。",
+ 原文:"6月，美国商务部还要求人工智能公司Anthropic限制Claude Fable5和Claude Mythos5等部分先进AI模型向外国公民开放，这家公司随后暂停相关模型服务；6月底，美国政府解除相关限制，随后服务恢复。",
+ 来源:"财经杂志（转新浪财经）",url:"https://cj.sina.cn/article/norm_detail?url=https%3A%2F%2Ffinance.sina.com.cn%2Fwm%2F2026-08-06%2Fdoc-inimkwtf0498139.shtml"},
+
+{date:"2026-06-22",type:"cn",cat:"mofcom",agency:"商务部",badge:"cn",
+ brief:"2026年第23号公告：将10家美国军工实体列入出口管制管控名单（含美国稀土公司）",
+ 依据:"《出口管制法》/ 2026年第23号公告",
+ 行动:"将美国稀土公司、杰亚机器人公司、蒂尔无人机公司、鲍尔航空航天技术公司、芒廷帕斯材料公司等10家美国实体列入出口管制管控名单，禁止对其出口两用物项，禁止任何国家将原产于中国的两用物项转移或提供给上述实体。",
+ 分析:"精准对等——美方出涉军清单，中方反制美军工核心实体，并点名两家稀土公司掐住美军工稀土命脉。'禁止任何国家转移'体现域外反制效力。",
+ 原文:"6月22日，中国商务部发布2026年第23号公告，将美国稀土公司、杰亚机器人公司、蒂尔无人机公司、鲍尔航空航天技术公司、芒廷帕斯材料公司等10家美国相关实体列入出口管制管控名单，禁止出口经营者对上述10家实体出口两用物项，禁止任何国家和地区的组织和个人将原产于中国的两用物项转移或提供给上述实体。",
+ 来源:"财经杂志 / 新浪财经",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-06-22",type:"cn",cat:"other-cn",agency:"财政部",badge:"cn",
+ brief:"政府采购禁采46家美国企业产品（在华美资企业除外）",
+ 依据:"政府采购限制措施",
+ 行动:"发布通知，政府采购活动中不得采购46家美国企业（在华美资企业除外）生产的产品。",
+ 分析:"用政府采购市场作筹码，冲击美军民双线企业在华民用业务（航空维保、直升机等）的现金流，是对'涉军'企业的间接经济施压。",
+ 原文:"同日，中国财政部发布通知，规定政府采购活动中不得采购46家美国企业（在华美资企业除外）生产的产品。",
+ 来源:"财经杂志 / 腾讯新闻",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-06-23",type:"cn",cat:"other-cn",agency:"企业（司法途径）",badge:"cn",
+ brief:"阿里巴巴在美起诉，要求撤销国防部对其'涉军企业'认定",
+ 依据:"美国司法审查 / 1260H认定异议",
+ 行动:"阿里巴巴在美提起诉讼，要求撤销美国防部对其'涉军企业'的认定，认为被纳入名单是错误且无依据的。",
+ 分析:"企业以美国司法途径挑战1260H认定，是'用对手的规则打对手'，既维权也向美方传递'清单并非无可争议'，形成政府反制之外的民间防线。",
+ 原文:"6月下旬，阿里巴巴在美提起诉讼，要求撤销美国防部对其'涉军企业'的认定。其公告认为，被纳入该名单是一个错误，并无任何依据。对任何试图歪曲公司形象的行为，将采取一切可行的法律行动。",
+ 来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-06-24",type:"cn",cat:"mofcom",agency:"商务部",badge:"cn",
+ brief:"公布《产业链供应链安全调查工作办法》，建立系统性反制制度工具",
+ 依据:"《产业链供应链安全调查工作办法》",
+ 行动:"公布《产业链供应链安全调查工作办法》，为后续系统性反制建立制度化工具。",
+ 分析:"把反制从临时举措升级为'可重复使用的制度工具'，为后续系统性供应链调查与反制建立法治化抓手，标志中方反制走向制度化。",
+ 原文:"6月24日，商务部公布《产业链供应链安全调查工作办法》，为后续系统性反制建立制度化工具。",
+ 来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-07-01",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"临时最终规则：12家SiC/GaN功率半导体中企入清单，限制EDA/测试设备/外延材料",
+ 依据:"EAR临时最终规则 / 实体清单",
+ 行动:"将12家SiC/GaN功率半导体设计、制造、封装中国公司列入实体清单，限制其获取美产EDA工具、测试设备及关键外延材料。",
+ 分析:"瞄准第三代半导体（车规、光伏、6G），既卡先进功率器件又卡EDA/测试/外延材料，意在迟滞中国在新能源汽车与能源基础设施上的宽禁带优势。",
+ 原文:"On July 1, 2026, BIS issued an interim final rule… places 12 Chinese companies involved in SiC and GaN power semiconductor design, fabrication, and packaging on the Entity List. The stated restriction affects their ability to obtain U.S.-made EDA tools, testing equipment, and critical epitaxial materials.",
+ 来源:"奇帅（转BIS临时最终规则）",url:"https://www.qishuai-cn.com/news/Integrated_Circuits/Power_Semiconductors_SiC_GaN_/U_S_Tightens_SiC_GaN_Export_Controls_With_12_New_Listings.html"},
+
+{date:"2026-07-09",type:"us",cat:"ustr",agency:"商务部（美）",badge:"us",
+ brief:"依据《1962年贸易扩展法》第232条完成调查：进口商用飞机/喷气发动机损害国安",
+ 依据:"《1962年贸易扩展法》第232条",
+ 行动:"商务部长完成232调查并提交报告，认定进口商用飞机、喷气发动机及相关零部件可能损害国家安全（可为后续关税/进口限制提供法律基础）。",
+ 分析:"232条以'国安'为名为后续关税/进口限制提供法律基础，瞄准商飞等国产大飞机供应链，属'预防性'产业保护——在大飞机形成竞争力前先设壁垒。",
+ 原文:"7月9日，美国商务部长依据《1962年贸易扩展法》第232条完成调查并提交报告，认定进口商用飞机、喷气发动机及相关零部件可能损害国家安全。",
+ 来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-07-14",type:"us",cat:"ofac",agency:"财政部 OFAC",badge:"us",
+ brief:"OFAC涉伊朗石油'影子舰队'制裁（7/14+7/29两轮，含8家中企+7艘船）",
+ 依据:"第13902号行政令 / SDN清单（含二级制裁风险）",
+ 行动:"7/14对涉伊'影子舰队'网络50+对象制裁（含2家香港航运+ELPINIKI轮）；7/29对8公司+8船制裁（含6家中国企业+6艘关联船舶）。均依第13902号行政令，涉二级制裁风险。",
+ 分析:"以'影子舰队'叙事两轮扩大航运制裁，将中企航运纳入二级制裁射程，意在切断伊朗石油出口的物流与保险/金融支撑。两轮递进（50+→8+8）形成对涉伊航运的持续高压，对中国航运合规构成直接风险。",
+ 多条:true,
+ items:[
+  {h:"7/14 · 影子舰队网络50+对象（含2港企+1船）",依据:"第13902号行政令 / SDN清单",行动:"对一个涉伊朗'非法航运和制裁规避网络'实施制裁，共50+个人/实体/船舶，含2家中国香港航运企业（Ocean Searum One、Sai Wan Shipping）及ELPINIKI轮。",分析:"以'影子舰队'叙事扩大航运制裁，将中企航运纳入二级制裁射程，意在切断伊朗石油出口的物流与保险/金融支撑，对中国航运合规构成直接风险。",原文:"当地时间2026年7月14日，美国财政部海外资产控制办公室(OFAC)宣布对一个被认定与伊朗相关的'非法航运和制裁规避网络'实施新一轮制裁。此次行动共涉及50多个个人、实体及船舶，其中包括2家中国香港航运企业和1艘相关船舶。",来源:"同花顺（航宝）",url:"https://m.10jqka.com.cn/20260715/c678193033.shtml"},
+  {h:"7/29 · 影子舰队8公司+8船（含6中企+6船）",依据:"第13902号行政令 / SDN清单（含二级制裁风险）",行动:"以涉伊朗石油运输'影子舰队'为由将8家公司+8艘船舶列入SDN清单，含6家中国企业（香港）及6艘关联船舶，涉二级制裁风险。",分析:"进一步扩大涉伊航运制裁，对中企船舶课以二级制裁风险，既是地缘施压，也向全球船东/保险/银行传递'涉华涉伊航运即高风险'的合规警示。",原文:"当地时间2026年7月29日，美国财政部外国资产控制办公室(OFAC)以涉伊朗石油运输'影子舰队'为由将8家公司和8艘船舶列入SDN清单进行制裁……本次制裁共纳入6家中国企业及其6艘关联船舶。任何向上述被制裁实体或船舶提供重大支持、结算或金融服务的外国金融机构和企业，将面临被施加二级制裁的风险。",来源:"同花顺 / 国际贸易网",url:"https://m.10jqka.com.cn/20260730/c678549677.shtml"}
+ ]},
+
+{date:"2026-07-23",type:"us",cat:"ustr",agency:"贸易代表办公室 USTR",badge:"us",
+ brief:"依301条以'强迫劳动'对60个经济体加征关税，中国适用12.5%",
+ 依据:"《1974年贸易法》第301条",
+ 行动:"以'未禁止进口强迫劳动产品'为由对60个经济体加征关税，中国适用12.5%税率。",
+ 分析:"以'强迫劳动'为名对60个经济体统一加税，把人权议题'关税化、多边化'，借301条将单边诉求包装成普世规则，压缩中国出口价格优势。",
+ 原文:"7月23日，美国贸易代表办公室依据《1974年贸易法》第301条，对60个经济体以所谓'未禁止进口强迫劳动产品'为由加关税，中国适用12.5%的关税税率。",
+ 来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-07-23",type:"us",cat:"dod",agency:"国防部 DOD",badge:"us",
+ brief:"发布1286清单，将中俄伊130所高校/科研机构列入（含复旦、上海交大）",
+ 依据:"'从事问题活动的外国科研机构清单'(1286清单)",
+ 行动:"发布2025年1286清单，将中俄伊130所高校及科研机构列入，含复旦大学、上海交通大学等，意在限制中美科研合作与人才交流。",
+ 分析:"1286清单直指科研合作与人才交流，意在阻断中美学术-技术纽带。与1260H（企业）、UFLPA（供应链）形成'企业+科研+供应链'三位一体脱钩工具箱。",
+ 原文:"同日（7月23日），美国国防部发布2025年'从事问题活动的外国科研机构清单'(1286清单)，将中国、俄罗斯和伊朗130所高校及科研机构列入，包括复旦大学、上海交通大学等。",
+ 来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"},
+
+{date:"2026-07-25",type:"us",cat:"bis",agency:"商务部 BIS",badge:"us",
+ brief:"临时最终规则：37家中企入实体清单（SiC/GaN封装、超高纯特气、AMC过滤、UPW系统）",
+ 依据:"EAR临时最终规则 / 实体清单",
+ 行动:"将37家中国实体列入实体清单，覆盖SiC/GaN功率器件封装、超高纯电子特气、AMC过滤单元、UPW系统集成；对1200V+ SiC MOSFET、sub-ppb超纯气、AMC过滤单元实施许可要求，多数推定拒绝，即日生效。",
+ 分析:"管制深入'支撑材料与设施'（特气、过滤、超纯水），从卡产品到卡'生产环境'，意在动摇中国晶圆厂运营连续性，而非单一交易。",
+ 原文:"On July 25, 2026, BIS expanded export controls by placing 37 Chinese entities on the Entity List, covering semiconductor-related segments such as SiC/GaN power device packaging, ultra-high-purity electronic specialty gases, AMC filtration units, and UPW system integration… Most license applications are expected to face a presumption of denial. The rule took effect immediately.",
+ 来源:"GlobalTradeDraft（转BIS临时最终规则）",url:"https://globaltradedraft.com/news/Electronic_Chem/Sub_ppb_Ultra_pure_Gases/U_S_Adds_37_Chinese_Chip_Supply_Firms_to_Export_List.html"},
+
+{date:"2026-07-28",type:"us",cat:"fcc",agency:"联邦通信委员会 FCC",badge:"us",
+ brief:"更新受管制清单：禁境外产联网逆变器及先进机器人（人形/四足）新品入美",
+ 依据:"《2019年安全可信通信网络法》/ 受管制清单(Covered List) / 国家安全认定",
+ 行动:"发布DA26-786，将'境外生产的电力逆变器'与'境外生产的先进机器人设备'（人形、四足、自主移动机器人）加入受管制清单，新型号无法获FCC设备授权；可向国防部(机器人)/国土安全部(逆变器)申请'有条件批准'。",
+ 分析:"FCC把管辖从'通信设备'扩到'任何带芯片联网产品'，逻辑从'点名企业'升级为'整类封杀'。精准狙击中国在具身智能与光伏逆变器上的产业化优势，举证责任反转（整类假定有风险）。",
+ 原文:"【FCC官网FAQ原文】'...all foreign-produced \"advanced robotic devices\" and \"power inverters\" pose an \"unacceptable risk to the national security of the United States and to the safety and security of U.S. persons and should be included on the FCC's Covered List.\"' 豁免规则：获得战争部(DoW)或国土安全部(DHS)有条件批准的生产商可继续申请FCC设备认证。本次为继2025年12月外国产无人机、2026年3月外国产路由器后，FCC受管制清单的又一次'整类封杀'式扩张。",
+ 来源:"美国FCC官网（fcc.gov/covered-list-faqs-robots-inverters，一手英文原文）/ 财经杂志 / 聊城贸促会（转FCC公告DA26-786）/ Crowell、JD Supra律所分析",url:"https://www.fcc.gov/covered-list-faqs-robots-inverters"},
+
+{date:"2026-07-30",type:"dialog",cat:"dialog",
+ title:"中美经贸牵头人视频通话 · 何立峰 — 贝森特 / 格里尔",
+ brief:"落实北京会晤共识；中方就近期美对华经贸限制表达严正关切",
+ 分析:"经贸牵头人级沟通，落实北京会晤共识、发挥经贸磋商机制作用，体现'斗而不破'。但仅隔一天（7/31）美方即出DHS涉疆清单，使'护栏'成效受疑，反成8/5中方反制的直接导火索。",
+ cn:{label:"中方通稿（新华社）",text:"双方围绕落实好中美两国元首北京会晤重要共识，就下一阶段保持经贸关系稳定、拓展务实合作、妥善解决彼此关切，进行了坦诚、深入、富有建设性的交流。中方就近期美对华经贸限制措施表达严正关切。双方同意在两国元首战略引领下，进一步发挥好中美经贸磋商机制作用……推动中美经贸关系稳定向好，助力构建中美建设性战略稳定关系。",src:"中国新闻网/新华社",url:"https://m.chinanews.com/wap/detail/chs/zw/10669568.shtml"},
+ us:{label:"美方通稿（国务院/财政部）",text:"The two sides held candid, in-depth and constructive exchanges on implementing the important consensus reached between the two heads of state at their meeting in Beijing, and on maintaining stable economic and trade relations, expanding practical cooperation, and properly addressing each other's concerns. Both sides agreed to further leverage the role of the China-U.S. economic and trade consultation mechanism.",src:"中国国务院英文版（english.gov.cn）",url:"https://english.www.gov.cn/news/202607/31/content_WS6a6be666c6d00ca5f9a0c7c8.html"}},
+
+{date:"2026-07-31",type:"us",cat:"dhs",agency:"国土安全部 DHS",badge:"us",
+ brief:"增列43家中企至UFLPA涉疆清单（洽洽、思念、七匹狼等），8月3日起禁入美，总数升至187",
+ 依据:"《维吾尔强迫劳动预防法》(UFLPA) 实体清单",
+ 行动:"将43家中国企业增列至UFLPA实体清单（含洽洽瓜子、思念食品、七匹狼、棉纺织等），为2022年实施以来单次最大扩容，总数升至187家，8月3日起相关产品禁止入美。",
+ 分析:"清单设立以来单次最大扩容，且纳入洽洽、思念等消费品，显示'涉疆'议题被工具化到荒诞程度——真正意图是施压中国棉纺/食品/服装产业链；7/30通话次日出手，具'边谈边压'特征。",
+ 原文:"美东时间7月31日，美国国土安全部宣布将40余家中国实体增列至'维吾尔强迫劳动预防法'实体清单……需要特别强调的是，7月30日中美经贸牵头人举行视频通话，双方就保持经贸关系稳定进行了坦诚、深入、富有建设性的交流。仅仅时隔一天，美方即出台损害中方利益的恶劣措施，严重背离两国元首共识。",
+ 来源:"中国新闻网（商务部发言人）",url:"https://www.chinanews.com/cj/2026/08-01/10670340.shtml"},
+
+{date:"2026-08-01",type:"cn",cat:"mofcom",agency:"商务部",badge:"cn",
+ brief:"就DHS涉疆清单强烈谴责、坚决反对，指'严重背离两国元首共识'",
+ 依据:"商务部新闻发言人表态",
+ 行动:"就DHS将43家中企列入涉疆实体清单，商务部强烈谴责、坚决反对，指美方做法毫无事实依据、是典型经济胁迫，敦促美方立即停止。",
+ 分析:"在通话次日强烈谴责，强调'严重背离两国元首共识'，意在占领道义高地，将'破坏稳定'责任归于美方，为8/5反制做正当性铺垫。",
+ 原文:"美方相关做法毫无事实依据，持续借所谓'人权'和'强迫劳动'之名，依据国内法肆意对中国企业实施单边制裁，是典型的经济胁迫行为……仅仅时隔一天，美方即出台损害中方利益的恶劣措施，严重背离两国元首共识。中方对此强烈谴责，坚决反对。",
+ 来源:"中国新闻网",url:"https://www.chinanews.com/cj/2026/08-01/10670340.shtml"},
+
+{date:"2026-08-02",type:"cn",cat:"other-cn",agency:"中国棉花协会",badge:"cn",
+ brief:"发布声明反对美方制裁打压中国棉纺织企业",
+ 依据:"行业组织声明",
+ 行动:"中国棉花协会发布声明反对美方制裁打压中国棉纺织企业，指出新疆机采棉占比已超90%，全产业链高度自动化，根本不存在所谓强迫劳动。",
+ 分析:"行业组织出面以事实反驳（机采棉>90%），从产业链实证角度瓦解'强迫劳动'叙事，形成政府谴责+行业证伪+企业诉讼的多层反制叙事。",
+ 原文:"美方所谓'强迫劳动'的指控毫无事实与法理依据。新疆机采棉目前占比已超过90%，从种植、采摘到加工、纺织，全产业链均实现了高度自动化与规模化……美方对中国企业实施'有罪推定'，其实质是将人权议题政治化、工具化，企图遏制中国棉纺织产业的发展。",
+ 来源:"央视网（中国棉花协会微信公众号）",url:"https://news.cctv.com/2026/08/02/ARTIhOZ1IvfGsgARGypxUQHv260802.shtml"},
+
+{date:"2026-08-05",type:"cn",cat:"multi",agency:"商务部 / 市场监管总局",badge:"cn",
+ brief:"一天五项反制：无人机出口管制 + 反制清单 + 首例外贸国安调查 + 暂停CCC跟踪检查",
+ 依据:"《出口管制法》《反外国制裁法》《对外贸易法》第41条 / 商务部令第2、3号",
+ 行动:"商务部一天连发四项公告 + 认监委一项公告，共五项反制措施（见下方逐条）。",
+ 分析:"一日五项反制呈'精准对等+制度化+克制升级'：直指FCC认证链条与涉疆制裁的数据/技术帮凶，并首次启用外贸国安调查与认证反制，标志中方反制工具箱从出口端扩至进口端与认证端。",
+ 多条:true,
+ items:[
+  {h:"商务部 · 无人机对美出口管制",依据:"《出口管制法》《两用物项出口管制条例》",行动:"对列入《两用物项出口管制清单》的无人机及关键零部件、相关技术对美出口逐案从严审核，不适用许可便利措施。",分析:"以'两用物项'对美逐案从严、不适用许可便利，是对美方FCC/无人机管制的对等回应，亦呼应此前无人机出口管制体系。",原文:"对列入《中华人民共和国两用物项出口管制清单》的无人机及其关键零部件、相关技术对美国出口，逐案从严审核，不适用许可便利措施。",来源:"财经杂志/新华社",url:"https://www.toutiao.com/article/7670904298204594740"},
+  {h:"商务部令2026年第2号 · 6家美实体入反制清单",依据:"《反外国制裁法》及其实施规定 / 商务部令第2号",行动:"将应用DNA科学公司、地层水库公司、阿尔塔纳技术公司、责任商业联盟、维泰集团、人权在中国组织6家美实体列入反制清单（协助涉疆非法制裁），禁止交易合作。",分析:"精准打击涉疆禁令的'技术帮凶'（DNA溯源、数据支撑），从制裁链条的数据/技术环节反制，瓦解美方'溯源证据'基础。",原文:"这6家美国实体协助、支持美国涉疆非法制裁，性质恶劣……决定将这6家实体列入反制清单，禁止我国境内的组织、个人与其进行有关交易、合作等活动。",来源:"环球时报/腾讯新闻",url:"https://www.toutiao.com/article/7670714474101391887/"},
+  {h:"商务部令2026年第3号 · 反制美国合规性测试公司",依据:"《反外国制裁法》 / 商务部令第3号",行动:"将美国合规性测试公司(Compliance Testing LLC)列入反制清单（协助FCC措施），禁止我国境内组织、个人与其交易合作。",分析:"直接反制FCC认证链条的'技术打手'，切断其在华业务，是对FCC 7/28新规的精准对等回击。",原文:"美国合规性测试公司协助、支持美国联邦通信委员会采取措施，危害我国主权、安全、发展利益……禁止我国境内的组织、个人与其进行有关交易、合作等活动。",来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"},
+  {h:"商务部 · 首例'对外贸易国家安全调查'",依据:"《对外贸易法》第41条",行动:"对装有外国系统软件的进口打印复印办公设备发起对外贸易国家安全立案调查（中国首例），8月5日开始，期限一般不超过12个月。",分析:"首次启用《对外贸易法》第41条国安调查，把'国家安全'审查工具化用于进口打印设备，标志中方反制从出口端扩至进口端，制度工具再升级。",原文:"商务部5日发布公告，对相关进口打印复印办公设备发起了对外贸易国家安全调查。商务部新闻发言人表示，此次调查是中国首例对外贸易国家安全调查。",来源:"财经杂志/新华社",url:"https://finance.sina.cn/tech/2026-08-06/detail-inimhxzv4920761.d.html"},
+  {h:"市场监管总局/认监委 · 暂停CCC跟踪检查",依据:"强制性产品认证(CCC)制度",行动:"国家认监委决定即日起暂停CCC认证指定机构委托在美认证机构实施获证后工厂跟踪检查。",分析:"首次在认证体系层面对美反制，与反制合规测试公司呼应，直指美方FCC认证链条，形成'认证—检测'双向施压。",原文:"国家认证认可监督管理委员会决定，即日起，暂停中国强制性产品认证(CCC认证)指定机构委托在美认证机构实施获证后工厂跟踪检查。",来源:"财经杂志",url:"https://www.toutiao.com/article/7670904298204594740"}
+ ]},
+
+{date:"2026-08-06",type:"us",cat:"ustr",agency:"白宫/商务部",badge:"us",
+ brief:"特朗普签232行政令：对进口多晶硅及衍生品设最低进口价+15%关税（12/4生效）",
+ 依据:"《1962年贸易扩展法》第232条 / 总统公告",
+ 行动:"对进口多晶硅及衍生产品设最低进口价（多晶硅21美元/公斤、硅锭硅片100美元/公斤、电池0.22美元/瓦、组件0.38美元/瓦），并对附件所列多晶硅锭及衍生品加征15%从价关税；授权商务部建'回流美国'激励计划；2026年12月4日生效。",
+ 分析:"以'国安'为名动用价格工具（最低进口价）而非单纯关税，更具市场准入约束力——低于红线的一切成本优势被清零，中国多晶硅几乎无法以现价入美。深层目的不仅是光伏，而是掐断中国在芯片供应链上游原料掌控力（半导体级多晶硅靠光伏级规模摊薄成本）。",
+ 原文:"当地时间8月6日，美国总统特朗普签署行政令，依据《1962年贸易扩展法》第232条，对进口多晶硅及其衍生产品采取最低进口价格和额外关税措施……最低进口价格分别为：多晶硅每公斤21美元；多晶硅锭和晶圆每公斤100美元；太阳能电池每瓦0.22美元；太阳能组件每瓦0.38美元。同时，美国将对公告附件所列多晶硅锭及相关衍生产品加征15%的从价关税。相关措施将自2026年12月4日起生效。",
+ 来源:"美国白宫网站公告 / 央视新闻 / 环球时报",url:"https://new.qq.com/rain/a/20260807A0440000"},
+
+{date:"2026-08-06",type:"cn",cat:"other-cn",agency:"网信办",badge:"cn",
+ brief:"对美国派拓公司(Palo Alto Networks)在华销售产品启动网络安全审查",
+ 依据:"《国家安全法》《网络安全法》《网络安全审查办法》",
+ 行动:"网络安全审查办公室对派拓公司(Palo Alto Networks)在华销售的产品实施网络安全审查，以保障关键信息基础设施安全稳定运行、防范网络安全风险、维护国家安全。",
+ 分析:"继2023年美光、2025年英伟达H20之后再次对美科技巨头启动网安审查，标志中方反制工具从贸易端延伸至网络安全端。专家强调此为维护国安的必要举措而非仅反制；时机紧跟8/5反制与8/6美方多晶硅232，具'组合拳'意味。派拓股价盘前跳水跌2%。",
+ 原文:"为保障关键信息基础设施安全稳定运行，防范网络安全风险隐患，维护国家安全，依据《中华人民共和国国家安全法》《中华人民共和国网络安全法》，网络安全审查办公室按照《网络安全审查办法》，对派拓公司(Palo Alto Networks)在华销售的产品实施网络安全审查。",
+ 来源:"人民日报/网信中国（网络安全审查办公室公告）",url:"https://society.people.com.cn/n1/2026/0806/c1008-40775204.html"},
+
+{date:"2026-08-06",type:"cn",cat:"other-cn",agency:"驻美使馆/外交部",badge:"cn",
+ brief:"驻美使馆回应美方多晶硅232：坚决反对泛化国安、无理打压中企",
+ 依据:"外交回应",
+ 行动:"中国驻美大使馆发言人回应美方多晶硅232措施，表示中方坚决反对美方泛化国家安全概念、滥用国家力量无理打压中国企业，将继续坚定维护中国企业正当合法权益。",
+ 分析:"对8/6美方多晶硅232的即时外交回应，占领道义高地；与8/1谴责涉疆清单同一脉络，为后续可能的实质性反制预留空间。",
+ 原文:"中国驻美大使馆发言人当天在回应《环球时报》记者相关问询时表示，中方坚决反对美方泛化国家安全概念，滥用国家力量无理打压中国企业。中方将继续坚定维护中国企业的正当合法权益。",
+ 来源:"环球时报（驻美使馆回应）",url:"https://www.163.com/dy/article/L3PQGQ450514R9OJ.html"},
+
+{date:"2026-08-11",type:"cn",cat:"mofcom",agency:"商务部",badge:"cn",
+ brief:"对原产于美国、墨西哥的进口碧根果反倾销初裁：征保证金（美54.3%/墨17.8%-51.6%），8/11起施行",
+ 依据:"《反倾销条例》第28、29条 / 临时反倾销措施（保证金形式）",
+ 行动:"对原产于美国和墨西哥的进口碧根果作出反倾销初裁，采用保证金形式实施临时反倾销措施；美国所有公司54.3%（无美企应诉，采可获得事实裁定），墨西哥公司17.8%-51.6%；2026年8月11日起进口经营者向海关提供相应保证金。立案日2025年9月25日。",
+ 分析:"属贸易救济而非直接反制——立案于2025/9/25（访华前），按WTO规则依法调查。但时点紧随8/5五项反制与8/6美方多晶硅232，客观上与对美施压节奏叠加；美企未应诉被裁54.3%高税率，体现'审慎克制使用'与'依法顶格'并存。",
+ 原文:"商务部8月10日发布公告，初步裁定原产于墨西哥和美国的进口碧根果存在倾销……自2026年8月11日起，进口经营者在进口被调查产品时，应依据本初裁决定所确定的各公司的保证金比率向中华人民共和国海关提供相应的保证金。其中墨西哥公司保证金比率自17.8%至51.6%不等，美国所有公司统一实行54.3%的保证金比率。",
+ 来源:"商务部公告 / 新华社 / 环球时报",url:"https://cj.sina.com.cn/article/norm_detail?url=https%3A%2F%2Ffinance.sina.com.cn%2Fmoney%2Fbond%2F2026-08-11%2Fdoc-inimwuhx4483024.shtml"}
+];
+
+const MONTH=["","1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+const timeline=document.getElementById('timeline');
+const drawer=document.getElementById('drawer');
+const drawerBody=document.getElementById('drawerBody');
+const drawerEmpty=document.getElementById('drawerEmpty');
+const dhBadge=document.getElementById('dhBadge');
+const dhTitle=document.getElementById('dhTitle');
+
+const byDate={};
+EVENTS.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
+const dates=Object.keys(byDate).sort();
+
+function renderH(){
+  timeline.className='timeline';
+  timeline.innerHTML='<div class="axis-line"></div><div class="axis-cap l">▲ 美方动作</div><div class="axis-cap r">中方动作 ▼</div>';
+  dates.forEach(d=>{
+    const evs=byDate[d];
+    const dialogs=evs.filter(e=>e.type==='dialog');
+    const usE=evs.filter(e=>e.type==='us');
+    const cnE=evs.filter(e=>e.type==='cn');
+    const [y,m,dd]=d.split('-');
+    const mStr=m.replace(/^0/,''), dStr=dd.replace(/^0/,'');
+    if(dialogs.length && !usE.length && !cnE.length){
+      const e=dialogs[0];
+      const col=document.createElement('div'); col.className='dcol'; col.dataset.side='dialog'; col.dataset.cat='dialog';
+      col.innerHTML=`<div class="dband"><div class="dic">🤝</div><div class="dt">${e.title}</div><div class="db">${e.brief}</div><div class="dd">${mStr}月${dStr}日 · 点击查看双方通稿</div></div>`;
+      col.querySelector('.dband').addEventListener('click',()=>openDrawer(e));
+      timeline.appendChild(col); return;
+    }
+    const col=document.createElement('div'); col.className='col'; col.dataset.date=d;
+    const usZone=document.createElement('div'); usZone.className='zone us-zone';
+    usE.forEach(e=>usZone.appendChild(card(e)));
+    const axis=document.createElement('div'); axis.className='axis-zone';
+    axis.innerHTML=`<div class="date-mark">${mStr}.${dStr}</div><div class="date-mon">${MONTH[+m]}</div>`;
+    const cnZone=document.createElement('div'); cnZone.className='zone cn-zone';
+    cnE.forEach(e=>cnZone.appendChild(card(e)));
+    col.appendChild(usZone); col.appendChild(axis); col.appendChild(cnZone);
+    timeline.appendChild(col);
+  });
+}
+function renderV(){
+  timeline.className='tlv';
+  timeline.innerHTML='';
+  dates.forEach(d=>{
+    const evs=byDate[d];
+    const dialogs=evs.filter(e=>e.type==='dialog');
+    const usE=evs.filter(e=>e.type==='us');
+    const cnE=evs.filter(e=>e.type==='cn');
+    const [y,m,dd]=d.split('-');
+    const mStr=m.replace(/^0/,''), dStr=dd.replace(/^0/,'');
+    if(dialogs.length && !usE.length && !cnE.length){
+      const e=dialogs[0];
+      const r=document.createElement('div'); r.className='vdrow';
+      r.innerHTML=`<div class="vdhead"><div class="dic">🤝</div><div class="dt"><h3>${e.title}</h3><div class="dbrief">${e.brief}</div></div><div class="vddate">${mStr}月${dStr}日</div></div>`;
+      r.addEventListener('click',()=>openDrawer(e));
+      timeline.appendChild(r); return;
+    }
+    const row=document.createElement('div'); row.className='vrow';
+    const usLane=document.createElement('div'); usLane.className='vlane us-vlane';
+    usE.forEach(e=>usLane.appendChild(card(e)));
+    const axis=document.createElement('div'); axis.className='vaxis';
+    axis.innerHTML=`<div class="dnum">${mStr}.${dStr}</div><div class="dmon">${MONTH[+m]}</div>`;
+    const cnLane=document.createElement('div'); cnLane.className='vlane cn-vlane';
+    cnE.forEach(e=>cnLane.appendChild(card(e)));
+    row.appendChild(usLane); row.appendChild(axis); row.appendChild(cnLane);
+    timeline.appendChild(row);
+  });
+}
+function markPaired(){
+  document.querySelectorAll('.card.paired').forEach(c=>c.classList.remove('paired'));
+  PAIRS.forEach(p=>{ const u=findCardEl(p.us), c=findCardEl(p.cn); if(u)u.classList.add('paired'); if(c)c.classList.add('paired'); });
+}
+let mode='h';
+function setMode(m){
+  mode=m;
+  document.body.classList.toggle('vmode',m==='v');
+  document.body.classList.toggle('hmode',m==='h');
+  const btn=document.getElementById('modeBtn');
+  if(btn) btn.textContent = m==='v'?'💻 切横屏':'📱 切竖屏';
+  if(mode==='h') renderH(); else renderV();
+  markPaired();
+  if(document.getElementById('toggleArcs').classList.contains('on')) buildArcs();
+  bindHover();
+}
+document.getElementById('modeBtn').addEventListener('click',()=> setMode(mode==='h'?'v':'h'));
+
+function card(e){
+  const c=document.createElement('div'); c.className='card '+e.type+(e.draft?' draft':''); c.dataset.side=e.type; c.dataset.cat=e.cat;
+  c._e=e;
+  c.innerHTML=`<span class="badge ${e.badge}">${e.draft?'⏳拟议·':''}${e.agency}</span><div class="cbrief">${e.brief}</div><div class="chint">${e.draft?'⏳ 拟议中·未生效·点击查看':'点击查看详情'} →</div>`;
+  c.addEventListener('click',()=>openDrawer(e));
+  return c;
+}
+
+function openDrawer(e){
+  drawerEmpty.style.display='none';
+  drawer.classList.remove('cn-side','dg-side');
+  if(e.type==='cn') drawer.classList.add('cn-side');
+  if(e.type==='dialog') drawer.classList.add('dg-side');
+
+  if(e.type==='dialog'){
+    dhBadge.className='dh-badge dg'; dhBadge.textContent='🤝 中美对话';
+    dhTitle.textContent=e.title;
+    drawerBody.innerHTML=`
+      <div class="spec dg-spec"><div class="spec-row"><span class="sl">时间</span><span class="sv"><b>${e.date}</b></span></div>
+      <div class="spec-row"><span class="sl">性质</span><span class="sv">中美一轨对话（${e.title}）</span></div></div>
+      <div class="drawer-sec-h">双方通稿</div>
+      <div class="dgspace cn"><span class="dlbl">${e.cn.label}</span><div class="dtext">${e.cn.text}</div><div class="src" style="margin-top:8px">来源：${e.cn.src}<br><a href="${e.cn.url}" target="_blank" rel="noopener">${e.cn.url}</a></div></div>
+      <div class="dgspace us"><span class="dlbl">${e.us.label}</span><div class="dtext">${e.us.text}</div><div class="src" style="margin-top:8px">来源：${e.us.src}<br><a href="${e.us.url}" target="_blank" rel="noopener">${e.us.url}</a></div></div>
+      <div class="ana"><span class="ah">📊 逐条分析</span><p>${e.分析}</p></div>`;
+  }else if(e.多条){
+    dhBadge.className='dh-badge cn'; dhBadge.textContent=e.agency;
+    dhTitle.textContent=e.date+' · 一天五项反制';
+    let h=`<div class="spec"><div class="spec-row"><span class="sl">时间</span><span class="sv"><b>${e.date}</b></span></div>
+      <div class="spec-row"><span class="sl">部委</span><span class="sv"><b>${e.agency}</b></span></div>
+      <div class="spec-row"><span class="sl">依据</span><span class="sv">${e.依据}</span></div>
+      <div class="spec-row"><span class="sl">行动</span><span class="sv">${e.行动}</span></div></div>
+      <div class="ana"><span class="ah">📊 总体分析</span><p>${e.分析}</p></div>
+      <div class="multi-title">📋 五项措施逐条规范</div>`;
+    e.items.forEach((it,i)=>{
+      h+=`<div class="subitem"><div class="sub-h">措施${i+1} · ${it.h}</div>
+        <div class="spec"><div class="spec-row"><span class="sl">依据</span><span class="sv">${it.依据}</span></div><div class="spec-row"><span class="sl">行动</span><span class="sv">${it.行动}</span></div></div>
+        <div class="ana"><span class="ah">📊 分析</span><p>${it.分析}</p></div>
+        <div class="quote"><span class="qlabel">原文引用</span>${it.原文}</div>
+        <div class="src">信息源：${it.来源}<br><a href="${it.url}" target="_blank" rel="noopener">${it.url}</a></div></div>`;
+    });
+    drawerBody.innerHTML=h;
+  }else{
+    dhBadge.className='dh-badge '+(e.type==='us'?'us':'cn'); dhBadge.textContent=e.agency;
+    dhTitle.textContent=e.date+' · '+e.brief.slice(0,24)+(e.brief.length>24?'…':'');
+    drawerBody.innerHTML=`
+      <div class="spec"><div class="spec-row"><span class="sl">时间</span><span class="sv"><b>${e.date}</b></span></div>
+      <div class="spec-row"><span class="sl">部委</span><span class="sv"><b>${e.agency}</b></span></div>
+      <div class="spec-row"><span class="sl">依据</span><span class="sv">${e.依据}</span></div>
+      <div class="spec-row"><span class="sl">行动</span><span class="sv">${e.行动}</span></div></div>
+      <div class="ana"><span class="ah">📊 逐条分析</span><p>${e.分析}</p></div>
+      <div class="quote"><span class="qlabel">原文引用</span>${e.原文}</div>
+      <div class="src">信息源：${e.来源}<br><a href="${e.url}" target="_blank" rel="noopener">${e.url}</a></div>`;
+  }
+  drawerBody.insertAdjacentHTML('beforeend', pairHtml(e));
+  drawer.classList.add('open');
+}
+
+document.getElementById('dhClose').addEventListener('click',()=>drawer.classList.remove('open'));
+
+// filters
+const filters=document.getElementById('filters');
+filters.addEventListener('click',ev=>{
+  const chip=ev.target.closest('.chip'); if(!chip) return;
+  filters.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  chip.classList.add('on');
+  const f=chip.dataset.f;
+  document.querySelectorAll('.card').forEach(c=>{
+    const side=c.dataset.side, cat=c.dataset.cat;
+    let show=false;
+    if(f==='all') show=true;
+    else if(f==='us') show=side==='us';
+    else if(f==='cn') show=side==='cn';
+    else if(f==='dialog') show=false;
+    else show=cat===f;
+    c.classList.toggle('dim',!show);
+  });
+  document.querySelectorAll('.dcol').forEach(c=>{
+    c.style.display=(f==='all'||f==='dialog')?'':'none';
+  });
+});
+
+// ===== 反制对应关系（跨轴弧线）=====
+const PAIRS=[
+ {us:{date:"2026-06-08",type:"us",agencyPrefix:"国防部"}, cn:{date:"2026-06-13",type:"cn",agencyPrefix:"外交部"}, cluster:"1260H反制群", color:"#0f766e", label:"反制1260H涉军清单"},
+ {us:{date:"2026-06-14",type:"us",agencyPrefix:"商务部 BIS"}, cn:{date:"2026-06-20",type:"cn",agencyPrefix:"商务部"}, cluster:"半导体升级反制", color:"#92400e", label:"反制6月半导体升级"},
+ {us:{date:"2026-06-08",type:"us",agencyPrefix:"国防部"}, cn:{date:"2026-06-22",type:"cn",agencyPrefix:"商务部"}, cluster:"1260H反制群", color:"#0f766e", label:"反制1260H涉军清单"},
+ {us:{date:"2026-06-08",type:"us",agencyPrefix:"国防部"}, cn:{date:"2026-06-22",type:"cn",agencyPrefix:"财政部"}, cluster:"1260H反制群", color:"#0f766e", label:"反制1260H涉军清单"},
+ {us:{date:"2026-06-08",type:"us",agencyPrefix:"国防部"}, cn:{date:"2026-06-23",type:"cn",agencyPrefix:"企业"}, cluster:"1260H反制群", color:"#0f766e", label:"反制1260H涉军清单"},
+ {us:{date:"2026-07-31",type:"us",agencyPrefix:"国土安全部"}, cn:{date:"2026-08-01",type:"cn",agencyPrefix:"商务部"}, cluster:"涉疆清单反制", color:"#ea580c", label:"反制涉疆清单"},
+ {us:{date:"2026-07-31",type:"us",agencyPrefix:"国土安全部"}, cn:{date:"2026-08-02",type:"cn",agencyPrefix:"中国棉花协会"}, cluster:"涉疆清单反制", color:"#ea580c", label:"反制涉疆清单"},
+ {us:{date:"2026-07-28",type:"us",agencyPrefix:"联邦通信"}, cn:{date:"2026-08-05",multi:true}, cluster:"FCC反制", color:"#7c3aed", label:"反制FCC(无人机/合规测试/CCC)"},
+ {us:{date:"2026-07-31",type:"us",agencyPrefix:"国土安全部"}, cn:{date:"2026-08-05",multi:true}, cluster:"涉疆清单反制", color:"#ea580c", label:"反制涉疆清单(第2号6家)"},
+ {us:{date:"2026-08-06",type:"us",agencyPrefix:"白宫"}, cn:{date:"2026-08-06",type:"cn",agencyPrefix:"驻美使馆"}, cluster:"多晶硅232回应", color:"#0369a1", label:"回应多晶硅232"}
+];
+const SVGNS='http://www.w3.org/2000/svg';
+let arcsSvg=null, arcPaths=[];
+function findEvent(desc){ return EVENTS.find(e=> desc.multi ? (e.cat==='multi'&&e.date===desc.date) : (e.date===desc.date&&e.type===desc.type&&e.agency&&e.agency.includes(desc.agencyPrefix))); }
+function findCardEl(desc){
+  let found=null;
+  document.querySelectorAll('.card').forEach(c=>{ const e=c._e; if(!e) return;
+    if(desc.multi){ if(e.cat==='multi'&&e.date===desc.date) found=c; }
+    else if(e.date===desc.date&&e.type===desc.type&&e.agency&&e.agency.includes(desc.agencyPrefix)) found=c; });
+  return found;
+}
+function matchesEvent(desc,e){
+  if(desc.multi) return e.cat==='multi'&&e.date===desc.date;
+  return e.date===desc.date&&e.type===desc.type&&e.agency&&e.agency.includes(desc.agencyPrefix);
+}
+function pairLabel(desc){ const ev=findEvent(desc); return ev? `${ev.date} ${ev.agency}：${ev.brief.slice(0,24)}${ev.brief.length>24?'…':''}` : ''; }
+function pairHtml(e){
+  let targets=[], responses=[];
+  PAIRS.forEach(p=>{ if(matchesEvent(p.us,e)) responses.push(p); if(matchesEvent(p.cn,e)) targets.push(p); });
+  const box=(arr,who)=>`<div style="background:#fbf6ea;border:1px solid #ead9a8;border-radius:8px;padding:10px 13px;font-size:12.6px;color:#5a4a1a;margin-bottom:12px">`+
+    arr.map((p,i)=>`<div style="padding:4px 0${i?';border-top:1px dashed #ead9a8':''}"><b style="color:${p.color}">●</b> ${pairLabel(p[who])}<br><span style="color:#8a6b15;font-size:11.3px">${p.label}</span></div>`).join('')+`</div>`;
+  let h='';
+  if(e.type==='us' && responses.length) h=`<div class="drawer-sec-h">🎯 引发中方反制（${responses.length} 项）</div>`+box(responses,'cn');
+  else if((e.type==='cn'||e.cat==='multi') && targets.length) h=`<div class="drawer-sec-h">🎯 反制对象（瞄准美方动作）</div>`+box(targets,'us');
+  return h;
+}
+function buildArcs(){
+  if(arcsSvg){ arcsSvg.remove(); arcsSvg=null; }
+  document.querySelectorAll('.card.paired').forEach(c=>c.classList.remove('paired'));
+  if(!document.getElementById('toggleArcs').classList.contains('on')){ arcPaths=[]; return; }
+  const tl=document.getElementById('timeline');
+  arcsSvg=document.createElementNS(SVGNS,'svg');
+  arcsSvg.setAttribute('class','arcs-svg');
+  arcsSvg.setAttribute('width', mode==='h' ? tl.scrollWidth : tl.offsetWidth);
+  arcsSvg.setAttribute('height', mode==='h' ? tl.offsetHeight : tl.scrollHeight);
+  tl.appendChild(arcsSvg);
+  const defs=document.createElementNS(SVGNS,'defs');
+  const colors=[...new Set(PAIRS.map(p=>p.color))];
+  colors.forEach((col,i)=>{
+    const m=document.createElementNS(SVGNS,'marker'); m.setAttribute('id','arrow'+i); m.setAttribute('viewBox','0 0 10 10');
+    m.setAttribute('refX','8'); m.setAttribute('refY','5'); m.setAttribute('markerWidth','7'); m.setAttribute('markerHeight','7'); m.setAttribute('orient','auto');
+    const pth=document.createElementNS(SVGNS,'path'); pth.setAttribute('d','M0,0 L10,5 L0,10 z'); pth.setAttribute('fill',col);
+    m.appendChild(pth); defs.appendChild(m);
+    PAIRS.forEach(pp=>{ if(pp.color===col) pp._marker='arrow'+i; });
+  });
+  arcsSvg.appendChild(defs);
+  const tlRect=tl.getBoundingClientRect();
+  arcPaths=[];
+  PAIRS.forEach(p=>{
+    const usCard=findCardEl(p.us), cnCard=findCardEl(p.cn);
+    if(!usCard||!cnCard) return;
+    const ur=usCard.getBoundingClientRect(), cr=cnCard.getBoundingClientRect();
+    let d;
+    if(mode==='h'){
+      // 横屏：US(上) → CN(下)，垂直跨轴弧线
+      const ux=ur.left-tlRect.left+ur.width/2, uy=ur.bottom-tlRect.top;
+      const cx=cr.left-tlRect.left+cr.width/2, cy=cr.top-tlRect.top;
+      const mid=(uy+cy)/2;
+      d=`M ${ux} ${uy} C ${ux} ${mid} ${cx} ${mid} ${cx} ${cy}`;
+    } else {
+      // 竖屏：US(左) → CN(右)，水平跨脊柱弧线
+      const ux=ur.right-tlRect.left, uy=ur.top-tlRect.top+ur.height/2;
+      const cx=cr.left-tlRect.left, cy=cr.top-tlRect.top+cr.height/2;
+      const mid=(ux+cx)/2;
+      d=`M ${ux} ${uy} C ${mid} ${uy} ${mid} ${cy} ${cx} ${cy}`;
+    }
+    const path=document.createElementNS(SVGNS,'path');
+    path.setAttribute('d',d); path.setAttribute('class','arc-path'); path.setAttribute('stroke',p.color);
+    path.setAttribute('marker-end',`url(#${p._marker})`);
+    path.dataset.cluster=p.cluster; path._us=usCard; path._cn=cnCard;
+    arcsSvg.appendChild(path); arcPaths.push(path);
+    usCard.classList.add('paired'); cnCard.classList.add('paired');
+  });
+}
+function clearHL(){ document.querySelectorAll('.card.hl').forEach(x=>x.classList.remove('hl')); document.querySelectorAll('.arc-path.hot').forEach(x=>x.classList.remove('hot')); }
+function bindHover(){
+  document.querySelectorAll('.card').forEach(c=>{
+    c.onmouseenter=()=>{
+      const e=c._e; const partners=new Set();
+      PAIRS.forEach(p=>{ if(matchesEvent(p.us,e)){const x=findCardEl(p.cn); if(x)partners.add(x);} if(matchesEvent(p.cn,e)){const x=findCardEl(p.us); if(x)partners.add(x);} });
+      partners.forEach(x=>x.classList.add('hl')); c.classList.add('hl');
+      arcPaths.forEach(p=>{ if(p._us===c||p._cn===c) p.classList.add('hot'); });
+    };
+    c.onmouseleave=clearHL;
+  });
+}
+document.getElementById('toggleArcs').addEventListener('click',function(){
+  this.classList.toggle('on');
+  if(mode==='h'){
+    if(this.classList.contains('on')) buildArcs();
+    else{ if(arcsSvg) arcsSvg.remove(); arcsSvg=null; arcPaths=[]; }
+  }
+  bindHover();
+});
+setMode(window.innerWidth < 760 ? 'v' : 'h');
+window.addEventListener('resize',()=>{ if(document.getElementById('toggleArcs').classList.contains('on')) buildArcs(); });
+
+// ===== A3横版打印 =====
+function getPairTag(e){
+  if(e.type==='us'){ const r=PAIRS.filter(p=>matchesEvent(p.us,e)); return r.length?'🎯引发'+r.length+'项反制':''; }
+  if(e.type==='cn'||e.cat==='multi'){ const t=PAIRS.filter(p=>matchesEvent(p.cn,e)); return t.length?'🎯反制：'+t.map(p=>(findEvent(p.us)||{}).agency||'').join('/'):''; }
+  return '';
+}
+function pcardPrint(e){
+  const tag=getPairTag(e);
+  return `<div class="pcard ${e.type}${e.draft?' draft':''}"><span class="pbadge ${e.badge}">${e.draft?'⏳拟议·':''}${e.agency}</span><div class="pbrief">${e.brief}</div>${tag?`<div class="ptag">${tag}</div>`:''}</div>`;
+}
+function buildPrintPages(){
+  const root=document.getElementById('printRoot'); root.innerHTML='';
+  const ds=dates.slice();
+  const rows=[ds.slice(0,9),ds.slice(9,18),ds.slice(18,26)];
+  const page=document.createElement('div'); page.className='print-page';
+  page.innerHTML=`<div class="pp-head"><span>中美出口管制博弈时间线（2026年5月13日—8月11日）· 特朗普访华后至今 · 26节点/31动作</span><span class="pp-sub">🤝中美对话 · 🎯反制对应 · S形走线·单页A3横版</span></div><div class="pp-rows"></div>`;
+  const rowsEl=page.querySelector('.pp-rows');
+  rows.forEach((chunk,ri)=>{
+    const row=document.createElement('div'); row.className='pp-row'+(ri===1?' rev':'');
+    row.innerHTML='<div class="pp-axis"></div><div class="pp-axis-l">▲美</div><div class="pp-axis-r">中▼</div>';
+    chunk.forEach(d=>{
+      const evs=byDate[d];
+      const dialogs=evs.filter(e=>e.type==='dialog');
+      const usE=evs.filter(e=>e.type==='us');
+      const cnE=evs.filter(e=>e.type==='cn');
+      const [y,m,dd]=d.split('-');
+      const col=document.createElement('div'); col.className='pcol';
+      if(dialogs.length && !usE.length && !cnE.length){
+        const e=dialogs[0];
+        col.innerHTML=`<div class="pdialog"><div class="dic">🤝</div><div class="dt">${e.title}</div><div class="db">${e.brief}</div><div class="dd">${m.replace(/^0/,'')}月${dd.replace(/^0/,'')}日</div></div>`;
+      }else{
+        let h='<div class="pus">';
+        usE.forEach(e=>h+=pcardPrint(e));
+        h+='</div><div class="paxis"><span class="dnum">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</span></div><div class="pcn">';
+        cnE.forEach(e=>h+=pcardPrint(e));
+        h+='</div>';
+        col.innerHTML=h;
+      }
+      row.appendChild(col);
+    });
+    rowsEl.appendChild(row);
+    if(ri<rows.length-1){
+      const conn=document.createElement('div'); conn.className='pp-conn '+(ri===0?'right':'left'); conn.textContent='▼ 续下行'; rowsEl.appendChild(conn);
+    }
+  });
+  root.appendChild(page);
+}
+document.getElementById('printBtn').addEventListener('click',()=>{ buildPrintPages(); window.print(); });
+window.addEventListener('afterprint',()=>{ const r=document.getElementById('printRoot'); if(r) r.innerHTML=''; });
+
+// horizontal wheel scroll
+const twrap=document.getElementById('twrap');
+twrap.addEventListener('wheel',function(ev){
+  if(Math.abs(ev.deltaY)>Math.abs(ev.deltaX)){
+    this.scrollLeft += ev.deltaY;
+    ev.preventDefault();
+  }
+},{passive:false});
+</script>
+</body>
+</html>
