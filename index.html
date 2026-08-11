@@ -920,7 +920,6 @@ function buildPrintPages(){
   });
   root.appendChild(page);
 }
-<omitted>
 document.getElementById('printBtn').addEventListener('click',()=>{ buildPrintPages(); window.print(); });
 window.addEventListener('afterprint',()=>{ const r=document.getElementById('printRoot'); if(r) r.innerHTML=''; });
 
