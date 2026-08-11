@@ -199,35 +199,41 @@
     .print-page{width:100%}
     .pp-head{font-size:14px;font-weight:700;margin-bottom:6px;border-bottom:2px solid #1f2733;padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
     .pp-head .pp-sub{font-size:11px;color:#5b6675;font-weight:600}
-    .pp-rows{display:flex;flex-direction:column;gap:4px}
-    /* 每行：固定轴线 y 坐标，卡片按轴线上下生长。列内容多则整行高，列内容少则留白 */
-    .pp-row{position:relative;display:flex;gap:3px;padding-top:6px;align-items:flex-start}
-    .pp-row.rev{flex-direction:row-reverse}
-    .pp-row .axis-bar{position:absolute;left:0;right:0;top:138px;height:2px;background:#b8c1cf;z-index:0}
-    .axis-l{position:absolute;top:128px;left:0;font-size:10px;color:#1c4fa0;font-weight:700;background:#fff;padding:0 4px;z-index:3}
-    .axis-r{position:absolute;top:128px;right:0;font-size:10px;color:#a83232;font-weight:700;background:#fff;padding:0 4px;z-index:3}
-    .pp-conn{font-size:9px;font-weight:700;color:#5b6675;padding:0;line-height:1;text-align:center;margin:1px 0}
-    .pp-conn.right{align-self:flex-end;padding-right:6px} .pp-conn.left{align-self:flex-start;padding-left:6px}
-    /* 每列：pus 固定130px高度，paxis 0高度用于挂日期圆点，pcn flex:1自适应 */
-    .pcol{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;padding:0 2px;z-index:1}
-    .pus{height:130px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px}
-    .paxis{height:0;position:static}
-    .pcn{display:flex;flex-direction:column;justify-content:flex-start;gap:4px;padding-top:6px}
-    /* 日期圆点：绝对定位锁在 axis-bar 同 y（axis-bar top:138px，dnum居pcol顶138-7=131px） */
-    .pcol>.dnum-wrap{position:absolute;top:131px;left:50%;transform:translateX(-50%);background:#1f2733;color:#fff;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:999px;white-space:nowrap;z-index:3;box-shadow:0 0 0 3px #fff,0 0 0 4.5px #b8c1cf}
+    .pp-rows{display:flex;flex-direction:column;gap:8px}
+    /* v6：双轨泳道+平行横轴。每行三段：上方美方/中央轴线对话/下方中方 */
+    .pp-row{position:relative;display:flex;gap:3px;padding:6px 0;border-top:1px dashed #cdd6e4}
+    .pp-row:first-child{border-top:none;padding-top:0}
+    .pp-row .axis-bar{position:absolute;left:0;right:0;top:50%;height:2px;background:#b8c1cf;transform:translateY(-1px);z-index:0}
+    .axis-l{position:absolute;top:50%;left:0;transform:translateY(-50%);font-size:10px;color:#1c4fa0;font-weight:700;background:#fff;padding:1px 4px;z-index:3;border:1px solid #cdd6e4;border-radius:3px}
+    .axis-r{position:absolute;top:50%;right:0;transform:translateY(-50%);font-size:10px;color:#a83232;font-weight:700;background:#fff;padding:1px 4px;z-index:3;border:1px solid #cdd6e4;border-radius:3px}
+    /* 每列：grid 三段（美方1fr/中央auto/中方1fr），pus和pcn等高 */
+    .pcol{flex:1;display:grid;grid-template-rows:1fr auto 1fr;min-width:0;position:relative;z-index:1;padding:0 2px}
+    .pus{display:flex;flex-direction:column;justify-content:flex-end;gap:4px;padding:0 2px 8px;min-height:50px}
+    .pcn{display:flex;flex-direction:column;justify-content:flex-start;gap:4px;padding:8px 2px 0;min-height:50px}
+    /* 中央带：日期+对话（如果有） */
+    .pmid{position:relative;height:24px;display:flex;align-items:center;justify-content:center}
+    .dnum-wrap{position:absolute;left:50%;transform:translateX(-50%);background:#1f2733;color:#fff;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:999px;white-space:nowrap;z-index:4;box-shadow:0 0 0 3px #fff}
+    .pdialog-inline{background:linear-gradient(135deg,#6e1e35,#451322);border:1.5px solid #c9a227;border-radius:6px;color:#fff;padding:3px 7px;font-size:9.5px;font-weight:700;line-height:1.2;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;position:relative;z-index:4}
+    .pdialog-inline .pic{display:inline;margin-right:3px}
+    /* 卡片 */
     .pcard{border:1px solid #b8c1cf;border-radius:5px;padding:5px 6px;border-left-width:3px;background:#fff;page-break-inside:avoid}
     .pcard.us{border-left-color:#2f6fdb} .pcard.cn{border-left-color:#e08a8a;background:#fff7f7}
     .pcard.draft{border-style:dashed;border-left-style:solid;border-left-color:#9aa3b0;background:#f8f9fb}
     .pbadge{font-size:9px;font-weight:700;padding:1.5px 4px;border-radius:3px;display:inline-block}
     .pbadge.us{background:#e8f0fe;color:#1c4fa0} .pbadge.cn{background:#fdeeee;color:#a83232}
-    .pbrief{font-size:11.5px;line-height:1.35;margin-top:3px;font-weight:600;color:#1f2733}
+    .pbrief{font-size:11px;line-height:1.3;margin-top:3px;font-weight:600;color:#1f2733}
     .pcard.cn .pbrief{color:#5a2828}
-    .ptag{font-size:9px;color:#b8860b;margin-top:3px;font-weight:700;line-height:1.3}
-    /* 中美一轨对话：小尺寸，紧贴 pus 底部轴线 */
-    .pdialog-col{background:linear-gradient(135deg,#6e1e35,#451322);border:1.5px solid #c9a227;border-radius:6px;color:#fff;padding:6px 7px;display:flex;flex-direction:column;gap:2px}
-    .pdialog-col .pdc-top{display:flex;align-items:center;gap:5px;font-size:8.5px;color:#f0d9a0}
-    .pdialog-col .pdc-ic{font-size:11px}
-    .pdialog-col .pdc-title{font-size:10.5px;font-weight:800;line-height:1.25;color:#fff}
+    .ptag{font-size:8.5px;color:#b8860b;margin-top:3px;font-weight:700;line-height:1.25}
+    /* 模块化整合：同一时间窗口的密集动作合并为大卡（占2列宽），内部列表 */
+    .pmodule{flex:2;grid-column:span 2;display:flex;flex-direction:column;gap:4px;padding:0 2px;min-width:0}
+    .pmodule .pmhead{background:#1f2733;color:#fff;padding:4px 8px;border-radius:5px;font-size:10.5px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+    .pmodule .pmhead .pmrange{font-size:9px;color:#f3d9a0}
+    .pmodule.us .pmhead{background:#1c4fa0}
+    .pmodule.cn .pmhead{background:#a83232}
+    .pmodule .pmlist{display:flex;flex-direction:column;gap:3px}
+    .pmodule .pmitem{padding:3px 6px;border-left:2px solid #cdd6e4;font-size:10px;line-height:1.3;color:#1f2733;background:#f8f9fb;border-radius:3px}
+    .pmodule.cn .pmitem{border-left-color:#e08a8a;background:#fff7f7;color:#5a2828}
+    .pmodule .pmitem b{font-weight:700;color:inherit}
   }
   footer{text-align:center;color:#9aa3b0;font-size:11.5px;margin-top:18px;line-height:1.9;padding:0 22px}
 
@@ -882,17 +888,15 @@ function pdialogCol(e){
 function buildPrintPages(){
   const root=document.getElementById('printRoot'); root.innerHTML='';
   const ds=dates.slice();
-  // S形 3 行，每行 10 节点（27+2对话=29 / 3 ≈ 10），剩余按需
-  // 实际更稳妥的分法：按时间顺序分 3 段
-  const total=ds.length;
-  const per=Math.ceil(total/3);
+  // v6：三段平行横轴，每段约 9 个日期；首尾用 → 接下行
+  const per=Math.ceil(ds.length/3);
   const rows=[ds.slice(0,per),ds.slice(per,2*per),ds.slice(2*per)];
   const page=document.createElement('div'); page.className='print-page';
-  page.innerHTML=`<div class="pp-head"><span>中美出口管制博弈时间线（2026年5月13日—8月11日）· 特朗普访华后至今</span><span class="pp-sub">🤝中美对话内嵌 · 🎯反制对应 · S形走线·单页A3横版</span></div><div class="pp-rows"></div>`;
+  page.innerHTML=`<div class="pp-head"><span>中美出口管制博弈时间线（2026年5月13日—8月11日）· 特朗普访华后至今</span><span class="pp-sub">🤝中美对话 · 双轨泳道 · 平行横轴 · 单页A3横版</span></div><div class="pp-rows"></div>`;
   const rowsEl=page.querySelector('.pp-rows');
   rows.forEach((chunk,ri)=>{
     if(!chunk.length) return;
-    const row=document.createElement('div'); row.className='pp-row'+(ri===1?' rev':'');
+    const row=document.createElement('div'); row.className='pp-row';  // 不再 rev
     chunk.forEach(d=>{
       const evs=byDate[d]||[];
       const dialogs=evs.filter(e=>e.type==='dialog');
@@ -900,33 +904,29 @@ function buildPrintPages(){
       const cnE=evs.filter(e=>e.type==='cn');
       const [y,m,dd]=d.split('-');
       const col=document.createElement('div'); col.className='pcol';
-      // 美方动作上方
+      // 中央带：日期 + 对话（如有）
+      let midHtml='<div class="pmid"><span class="dnum-wrap">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</span>';
+      if(dialogs.length){
+        const e=dialogs[0];
+        midHtml+='<div class="pdialog-inline"><span class="pic">🤝</span>'+e.title.slice(0,16)+(e.title.length>16?'…':'')+'</div>';
+      }
+      midHtml+='</div>';
       let h='<div class="pus">';
-      // 对话内嵌在 pus 区域底部（紧贴 paxis 上方，align-self:flex-end）
-      dialogs.forEach(e=>h+=pdialogCol(e));
-      usE.forEach(e=>h+=pcardPrint(e));
-      // 美方无动作且无对话时，给个最小占位避免列坍塌
       if(!usE.length && !dialogs.length) h+='<div style="min-height:30px"></div>';
-      h+='</div>';
-      // 日期圆点直接挂 pcol，绝对定位锁 axis-bar 同 y（不嵌 paxis）
-      h+='<div class="dnum-wrap">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</div>';
-      h+='<div class="pcn">';
-      cnE.forEach(e=>h+=pcardPrint(e));
+      usE.forEach(e=>h+=pcardPrint(e));
+      h+='</div>'+midHtml+'<div class="pcn">';
       if(!cnE.length) h+='<div style="min-height:30px"></div>';
+      cnE.forEach(e=>h+=pcardPrint(e));
       h+='</div>';
       col.innerHTML=h; row.appendChild(col);
     });
-    // 该行的轴线（跨整行宽度）
-    const axisBar=document.createElement('div'); axisBar.className='axis-bar';
-    // 轴线在该行最高列的中部（约一半高度）
-    axisBar.style.top='50%'; axisBar.style.transform='translateY(-50%)';
-    row.appendChild(axisBar);
-    // 左右"▲美方 / 中方▼"标签
+    // 轴线在行 50%
+    const axisBar=document.createElement('div'); axisBar.className='axis-bar'; row.appendChild(axisBar);
     const al=document.createElement('div'); al.className='axis-l'; al.textContent='▲ 美方'; row.appendChild(al);
     const ar=document.createElement('div'); ar.className='axis-r'; ar.textContent='中方 ▼'; row.appendChild(ar);
     rowsEl.appendChild(row);
     if(ri<rows.length-1 && rows[ri+1]&&rows[ri+1].length){
-      const conn=document.createElement('div'); conn.className='pp-conn '+(ri===0?'right':'left'); conn.textContent='▼ 续下行'; rowsEl.appendChild(conn);
+      const conn=document.createElement('div'); conn.style.cssText='text-align:center;font-size:9.5px;color:#5b6675;font-weight:700;padding:2px 0;letter-spacing:1px'; conn.textContent='→ 接下行'; rowsEl.appendChild(conn);
     }
   });
   root.appendChild(page);
