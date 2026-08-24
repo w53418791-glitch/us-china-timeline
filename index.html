@@ -705,8 +705,12 @@ const EVENTS=[
  分析:"公众号暂无专题。两起反规避调查与8/13白宫《大转运骗局》报告形成执法呼应。一旦认定规避将对相关产品征收与原令相同的AD/CVD税率。来源:中国贸促会南京市委编译、Justia Regulations、Federal Register。",
  原文:"...Commerce is initiating country-wide circumvention inquiries to determine whether imports... completed in Indonesia and Malaysia... using aluminum foil manufactured in the PRC, are circumventing the AD/CVD orders on aluminum containers from China.",
  来源:"Federal Register(FR Doc 2026-16053,2026-16056)/中国贸促会南京市委/Justia Regulations",
- url:"https://www.federalregister.gov/d/2026-16053"},
+ url:"https://www.federalregister.gov/d/2026-16053"}
+,
 
+{"date": "2026-08-21", "type": "us", "cat": "fcc", "agency": "FCC", "badge": "us", "brief": "FCC更新外国逆变器禁令纳入有线设备新增45X安全港", "依据": "FCC Covered List", "行动": "FCC更新逆变器禁令纳入有线设备新增45X安全港", "分析": "公众号暂无专题，分析综合其他权威源。", "原文": "FCC Covered List update.", "来源": "pv magazine USA", "url": "https://www.fcc.gov"},
+
+{"date": "2026-08-22", "type": "us", "cat": "fcc", "agency": "FCC", "badge": "us", "brief": "FCC要求所有认证实验室加强无人机筛查", "依据": "FCC Covered List", "行动": "FCC要求所有认证实验室加强无人机筛查", "分析": "公众号暂无专题，分析综合其他权威源。", "原文": "FCC drone screening labs.", "来源": "DroneXL", "url": "https://www.fcc.gov"}];
 
 const MONTH=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 const byDate={};
@@ -1022,14 +1026,7 @@ function buildPrintPages(){
       // 中央带：日期 + 对话（如有）
       let midHtml='<div class="pmid"><span class="dnum-wrap">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</span>';
       if(dialogs.length){
-        const e=dialogs[0],
-
-
-,
-
-{"date": "2026-08-21", "type": "us", "cat": "fcc", "agency": "FCC", "badge": "us", "brief": "FCC更新外国逆变器禁令，纳入有线设备并新增45X安全港", "依据": "FCC Covered List管制规则", "行动": "FCC更新外国逆变器禁令，纳入有线设备并新增45X安全港。", "分析": "公众号暂无专题，分析综合其他权威源。", "原文": "FCC updates Covered List.", "来源": "pv magazine USA", "url": "https://www.fcc.gov/document/fcc-covered-list-update"},
-
-{"date": "2026-08-22", "type": "us", "cat": "fcc", "agency": "FCC", "badge": "us", "brief": "FCC要求所有认证实验室加强无人机筛查", "依据": "FCC Covered List认证审查要求", "行动": "FCC向所有认证实验室发出指令，要求加强无人机筛查。", "分析": "公众号暂无专题，分析综合其他权威源。", "原文": "FCC directed all certified testing labs to enhance screening.", "来源": "DroneXL", "url": "https://www.fcc.gov/document/fcc-drone-screening"}];
+        const e=dialogs[0];
         midHtml+='<div class="pdialog-inline"><span class="pic">🤝</span>'+e.title.slice(0,16)+(e.title.length>16?'…':'')+'</div>';
       }
       midHtml+='</div>';
