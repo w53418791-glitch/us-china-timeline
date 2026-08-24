@@ -205,12 +205,22 @@ def append_events(html_content, new_events):
         events_js += ',\n\n' + json.dumps(e, ensure_ascii=False)
     
     # 在 ];\n\nconst MONTH= 前追加
-    anchor = '];\n\nconst MONTH='
+    # 用正则匹配 ]; 后面跟 const MONTH（兼容 \r\n 和 \n 换行）
+    import re as _re
+    _anchor_match = _re.search(r'\];\s*const MONTH=', html_content)
+    if _anchor_match:
+        anchor = _anchor_match.group()
+    else:
+        anchor = None
     if anchor not in html_content:
         # 尝试其他锚点
+        # 找 EVENTS 数组后的第一个 ];
+        events_start = html_content.find('const EVENTS=')
+        if events_start == -1:
+            print('  ERROR: const EVENTS= not found')
+            return html_content
         anchor = '];'
-        # 找最后一个 ];
-        last_semicolon = html_content.rfind('];')
+        last_semicolon = html_content.find('];', events_start)
         if last_semicolon == -1:
             print('  ERROR: 找不到 EVENTS 数组结尾锚点 ];')
             return html_content
