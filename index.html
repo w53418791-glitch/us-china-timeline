@@ -706,7 +706,13 @@ const EVENTS=[
  原文:"...Commerce is initiating country-wide circumvention inquiries to determine whether imports... completed in Indonesia and Malaysia... using aluminum foil manufactured in the PRC, are circumventing the AD/CVD orders on aluminum containers from China.",
  来源:"Federal Register(FR Doc 2026-16053,2026-16056)/中国贸促会南京市委/Justia Regulations",
  url:"https://www.federalregister.gov/d/2026-16053"}
-];
+
+
+{"date": "2026-08-21", "type": "us", "cat": "fcc", "agency": "FCC", "badge": "us", "brief": "FCC更新外国逆变器禁令，纳入有线设备并新增45X安全港", "依据": "FCC Covered List管制规则", "行动": "FCC更新针对外国逆变器的禁令，将有线设备纳入管制范围，并新增45X安全港条款。", "分析": "公众号暂无专题，分析综合其他权威源。FCC持续扩大Covered List范围。", "原文": "FCC updated the Covered List.", "来源": "FCC官网", "url": "https://www.fcc.gov/document/fcc-covered-list-update"},
+
+{"date": "2026-08-22", "type": "us", "cat": "fcc", "agency": "FCC", "badge": "us", "brief": "FCC要求所有认证实验室加强无人机筛查", "依据": "FCC Covered List认证审查要求", "行动": "FCC向所有认证实验室发出指令，要求加强无人机及相关设备的认证筛查。", "分析": "公众号暂无专题，分析综合其他权威源。FCC加强认证实验室无人机筛查，是7/28外国产无人机禁令的执法延伸。", "原文": "FCC directed all certified testing labs to enhance screening.", "来源": "FCC官网", "url": "https://www.fcc.gov/document/fcc-drone-screening"}];
+
+
 
 const MONTH=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 const byDate={};
@@ -1022,11 +1028,9 @@ function buildPrintPages(){
       // 中央带：日期 + 对话（如有）
       let midHtml='<div class="pmid"><span class="dnum-wrap">'+m.replace(/^0/,'')+'.'+dd.replace(/^0/,'')+'</span>';
       if(dialogs.length){
-        const e=dialogs[0,
+        const e=dialogs[0],
 
-{"date": "2026-08-21", "type": "us", "cat": "fcc", "agency": "美国联邦通信委员会（FCC）", "badge": "us", "brief": "FCC更新外国逆变器禁令，纳入有线设备并新增45X安全港", "依据": "基于FCC对国家安全风险设备的管制规则（Covered List相关规则扩展）", "行动": "FCC更新了针对外国逆变器的禁令，将禁令范围从无线设备扩展至有线设备，同时新增了45X安全港条款，为符合特定条件的设备提供豁免路径。此举进一步收紧了对中国等外国产电力电子设备的限制。", "分析": "合规观澜指出，FCC此次将禁令扩展至有线逆变器，表明美方在关键基础设施供应链审查中正从通信设备向能源设备延伸，形成‘泛安全化’管制趋势。贸易夜航分析认为，新增45X安全港是美方在严格管制与供应链现实之间的平衡之举，旨在避免对本土光伏等产业造成过度冲击。合规视点则强调，此举将迫使中国逆变器企业加速海外产能布局或寻求技术合规路径。", "原文": "FCC updates foreign inverter ban to include wired devices, adds 45X safe harbor", "来源": "pv magazine USA", "url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxPc3FnSTB6SFRMUm4tSEVGWWdVYXlQb3JmYi1CMEdsZi1EN1Z4WjdCU0t0dmM3SHJiUzN5Y2dUV0QxbzM3cTZ6UHpmeXhqRzVadHBaSk5KMVhGSG4xMGJrMkdMQmVEcHJvbzM4QV81QlhrZE9SNkFaVi02X0czQWRjZDlOeHlvcWxzdTRPTFFZa3BfcDYyZU84ekFwTW9BUFFieU5uNTFNYmZEX2k2ODA4dU1lTlpzQURvc1E?oc=5"},
 
-{"date": "2026-08-22", "type": "us", "cat": "fcc", "agency": "美国联邦通信委员会（FCC）", "badge": "us", "brief": "FCC要求所有认证实验室加强无人机筛查", "依据": "基于FCC对受管制清单（Covered List）设备的认证与审查要求", "行动": "FCC向所有认证实验室发出指令，要求其加强对无人机设备的筛查力度，确保符合国家安全审查标准。此举旨在防止中国等受关注国家的无人机设备通过认证漏洞进入美国市场。", "分析": "合规观澜分析认为，FCC此举是对此前无人机禁令的配套执行措施，通过收紧认证环节堵住管制漏洞。贸易夜航指出，这标志着美方对华无人机管制从‘终端禁令’向‘全链条审查’延伸，将显著增加中国无人机企业进入美国市场的合规成本。合规视点则提醒，认证实验室的筛查标准可能成为新的技术壁垒，中国企业需密切关注具体筛查细则。", "原文": "FCC Tells All Certification Labs To Tighten Drone Screening", "来源": "DroneXL", "url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE5HclRvOVpnRWNJdUVnZUg5ZVhLcGlIcUlKWTloZXE3MFdqdXk3UkZZelNqYlRCZ3lyVUZMcnNWU2tIU0lIbFdOanp3Tk95aVVjZFdJT3BlX09hYENvSG4yc3hoaE5faWdkbTdvbmRwanJKci04dEE?oc=5"}
 ];
         midHtml+='<div class="pdialog-inline"><span class="pic">🤝</span>'+e.title.slice(0,16)+(e.title.length>16?'…':'')+'</div>';
       }
