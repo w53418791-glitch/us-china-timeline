@@ -276,6 +276,11 @@ def main():
         f'DHS UFLPA China entity list {last_date}',
         f'Trump executive order China power grid electric {last_date}',
         f'White House executive order bulk power system China {last_date}',
+        f'whitehouse.gov China sanctions {last_date}',
+        f'State Department China sanctions {last_date}',
+        f'OFAC SDN China Hong Kong {last_date}',
+        f'Treasury sanctions China entity {last_date}',
+        f'White House executive order bulk power system China {last_date}',
     ]
     for q in us_queries:
         results = google_news_search(q, 'en')
@@ -294,6 +299,10 @@ def main():
         f'网信办 网络安全审查 {last_date}',
         f'反倾销 反补贴 美国 {last_date}',
         f'不可靠实体清单 {last_date}',
+        f'合规观澜 制裁 中国 {last_date}',
+        f'贸易夜航 制裁 出口管制 {last_date}',
+        f'合规视点 OFAC BIS {last_date}',
+        f'聆听美讯 制裁 关税 {last_date}',
     ]
     for q in cn_queries:
         results = google_news_search(q, 'zh')
