@@ -274,6 +274,8 @@ def main():
         f'USTR 301 tariff China {last_date}',
         f'ITC 337 China exclusion order final {last_date}',
         f'DHS UFLPA China entity list {last_date}',
+        f'Trump executive order China power grid electric {last_date}',
+        f'White House executive order bulk power system China {last_date}',
     ]
     for q in us_queries:
         results = google_news_search(q, 'en')
