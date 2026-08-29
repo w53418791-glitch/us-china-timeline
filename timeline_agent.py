@@ -109,7 +109,7 @@ def deepseek_verify(search_results, last_date, methodology):
       "brief": "时间线一行简述(30字内)",
       "依据": "基于xx规章/清单/调查",
       "行动": "采取xx行动(详细描述)",
-      "分析": "逐条AI分析(为何用/逻辑/意义)——必须引用合规观澜/贸易夜航/合规视点至少一个",
+      "分析": "逐条AI分析(为何用/逻辑/意义)——必须引用合规观澜/贸易夜航/合规视点/聆听美讯/USA yesterday至少一个",
       "原文": "原文引用",
       "来源": "来源",
       "url": "来源URL"
@@ -121,11 +121,13 @@ def deepseek_verify(search_results, last_date, methodology):
 
 ## 核实规则（硬性）
 1. 只收录 last_date({last_date}) 之后发布的新正式动作
-2. 放风/草案/独家消息一律不收\n2. **主体识别**：必须查清主体是谁做了什么——第三方报告/评论不收，只收政府机构正式动作\n3. **吹风/拟议不收**：彭博/路透援引知情人士的拟议/考虑消息不收\n4. **公众号权重**：合规观澜/贸易夜航/合规视点/聆听美讯为权威源
+2. 放风/草案/独家消息一律不收
 3. 年份三重验证：URL年份/正文日期/事件上下文，剔除2025年及更早旧闻
 4. ITC仅收终裁/初裁/排除令/禁止令；不收立案/投诉受理/日落复审/程序启动
 5. 不补录前序遗漏，只收 last_date 之后的新动作
-6. 分析部分必须引用合规观澜、贸易夜航、合规视点至少一个公众号（若暂无专题则标注"公众号暂无专题，分析综合其他权威源"）
+6. 分析部分必须引用合规观澜、贸易夜航、合规视点、聆听美讯、USA yesterday 至少一个公众号（若暂无专题则标注"公众号暂无专题，分析综合其他权威源"）
+7. **主体识别**：必须明确涉及中国政府/企业/实体，或美方明确针对中国；泛指"外国"的总统公告（如232/电力行政令）虽未点名中国但影响中国也收录，需在分析中说明影响路径
+8. **公众号 crosscheck**：每条事件应在合规观澜/贸易夜航/合规视点/聆听美讯/USA yesterday 中至少 crosscheck 1 个，确认该公众号有同步报道或分析；若5个公众号均无任何提及，标注"公众号暂无专题"并在分析中说明信息源局限
 """
 
     user_prompt = f"""今天是{TODAY}。last_date={last_date}。
@@ -205,22 +207,12 @@ def append_events(html_content, new_events):
         events_js += ',\n\n' + json.dumps(e, ensure_ascii=False)
     
     # 在 ];\n\nconst MONTH= 前追加
-    # 用正则匹配 ]; 后面跟 const MONTH（兼容 \r\n 和 \n 换行）
-    import re as _re
-    _anchor_match = _re.search(r'\];\s*const MONTH=', html_content)
-    if _anchor_match:
-        anchor = _anchor_match.group()
-    else:
-        anchor = None
+    anchor = '];\n\nconst MONTH='
     if anchor not in html_content:
         # 尝试其他锚点
-        # 找 EVENTS 数组后的第一个 ];
-        events_start = html_content.find('const EVENTS=')
-        if events_start == -1:
-            print('  ERROR: const EVENTS= not found')
-            return html_content
         anchor = '];'
-        last_semicolon = html_content.find('];', events_start)
+        # 找最后一个 ];
+        last_semicolon = html_content.rfind('];')
         if last_semicolon == -1:
             print('  ERROR: 找不到 EVENTS 数组结尾锚点 ];')
             return html_content
@@ -266,43 +258,66 @@ def main():
     # 3. 搜索（双语并行）
     all_results = []
     
-    # 美方英文搜索
+    # 美方英文搜索 (12维，覆盖全工具箱)
     us_queries = [
+        # BIS 出口管制
         f'BIS Entity List China export control {last_date}',
+        f'BIS EAR China dual-use {last_date}',
+        # OFAC 制裁（含涉伊朗次级制裁）
         f'OFAC SDN China sanctions {last_date}',
+        f'OFAC Iran China secondary sanctions {last_date}',
+        # 白宫 proclamation（232关税/行政令）
+        f'White House proclamation China tariff {last_date}',
+        f'White House executive order China {last_date}',
+        # 国务院制裁
+        f'State Department sanctions China {last_date}',
+        # FCC
         f'FCC China covered list {last_date}',
+        # USTR 301
         f'USTR 301 tariff China {last_date}',
+        # ITC 337（含普遍排除令 GEO）
         f'ITC 337 China exclusion order final {last_date}',
+        f'ITC general exclusion order China {last_date}',
+        # DHS UFLPA
         f'DHS UFLPA China entity list {last_date}',
-        f'Trump executive order China power grid electric {last_date}',
-        f'White House executive order bulk power system China {last_date}',
-        f'whitehouse.gov China sanctions {last_date}',
-        f'State Department China sanctions {last_date}',
-        f'OFAC SDN China Hong Kong {last_date}',
-        f'Treasury sanctions China entity {last_date}',
-        f'White House executive order bulk power system China {last_date}',
+        # DPA/DPAS 关键矿产出口限制
+        f'Defense Production Act China critical minerals {last_date}',
+        # DOC 贸易救济（反倾销/反规避/日落复审）
+        f'DOC antidumping China review final {last_date}',
+        f'DOC circumvention inquiry China {last_date}',
+        f'DOC sunset review China continuation {last_date}',
     ]
     for q in us_queries:
         results = google_news_search(q, 'en')
         all_results.extend(results)
         print(f'  搜索: {q[:50]}... → {len(results)} 条')
-    
+
     # Federal Register API
     fr_results = federal_register_search(last_date)
     all_results.extend(fr_results)
     print(f'  Federal Register → {len(fr_results)} 条')
-    
-    # 中方中文搜索
+
+    # 中方中文搜索 (10维，覆盖反制法律体系)
     cn_queries = [
+        # 外交部/商务部 反制清单
         f'商务部 反制 出口管制 {last_date}',
         f'外交部 反制 美国 {last_date}',
-        f'网信办 网络安全审查 {last_date}',
-        f'反倾销 反补贴 美国 {last_date}',
+        # 不可靠实体清单
         f'不可靠实体清单 {last_date}',
-        f'合规观澜 制裁 中国 {last_date}',
-        f'贸易夜航 制裁 出口管制 {last_date}',
-        f'合规视点 OFAC BIS {last_date}',
-        f'聆听美讯 制裁 关税 {last_date}',
+        # 网信办 网络安全审查
+        f'网信办 网络安全审查 {last_date}',
+        # 中方贸易救济（反倾销初裁）
+        f'商务部 反倾销 初裁 美国 {last_date}',
+        # 阻断办法
+        f'商务部 阻断 不当域外管辖 {last_date}',
+        # 反歧视/反规避调查
+        f'商务部 反歧视 调查 美国 {last_date}',
+        # 海关暂停进口
+        f'海关总署 暂停进口 美国 {last_date}',
+        # 两用物项/管控名单
+        f'两用物项 出口管制 清单 {last_date}',
+        # 稀土出口限制
+        f'稀土 出口限制 美国 {last_date}',
     ]
     for q in cn_queries:
         results = google_news_search(q, 'zh')
