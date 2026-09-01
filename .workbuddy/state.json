@@ -1,6 +1,6 @@
 {
-  "last_date": "2026-08-31",
+  "last_date": "2026-09-01",
   "date_nodes": 34,
-  "action_count": 46,
-  "note": "2026-09-01 fix: 删除8/29 AI芯片+8/31芯片关税重复事件(各保留1条)"
+  "action_count": 50,
+  "note": "2026-09-01 GitHub Actions自动更新: 新增4条事件"
 }
