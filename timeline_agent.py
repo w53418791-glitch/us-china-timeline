@@ -83,7 +83,7 @@ def federal_register_search(last_date):
         return []
 
 # ========== 3. DeepSeek 核实+结构化 ==========
-def deepseek_verify(search_results, last_date, methodology):
+def deepseek_verify(search_results, last_date, methodology, existing_events=None):
     """用 DeepSeek V3 核实搜索结果并输出结构化事件"""
     
     # 构建 prompt
@@ -92,9 +92,17 @@ def deepseek_verify(search_results, last_date, methodology):
         for i, r in enumerate(search_results)
     ])
     
+    # 已收录事件摘要（用于跨轮次语义查重）
+    existing_text = ''
+    if existing_events:
+        existing_text = '\n'.join([
+            f"- [{e.get('date','')}] ({e.get('type','')}) {e.get('agency','')}: {e.get('brief','')[:60]}"
+            for e in existing_events[-25:]  # 只给最近25条，省token
+        ])
+    
     system_prompt = f"""你是中美出口管制博弈时间线的自动更新助手。严格按以下规则工作：
 
-{methodology[:4000]}
+{methodology[:3500]}
 
 ## 输出格式
 返回 JSON 对象，格式如下：
@@ -128,6 +136,9 @@ def deepseek_verify(search_results, last_date, methodology):
 6. 分析部分必须引用合规观澜、贸易夜航、合规视点、聆听美讯、USA yesterday 至少一个公众号（若暂无专题则标注"公众号暂无专题，分析综合其他权威源"）
 7. **主体识别**：必须明确涉及中国政府/企业/实体，或美方明确针对中国；泛指"外国"的总统公告（如232/电力行政令）虽未点名中国但影响中国也收录，需在分析中说明影响路径
 8. **公众号 crosscheck**：每条事件应在合规观澜/贸易夜航/合规视点/聆听美讯/USA yesterday 中至少 crosscheck 1 个，确认该公众号有同步报道或分析；若5个公众号均无任何提及，标注"公众号暂无专题"并在分析中说明信息源局限
+9. **跨轮次语义查重（硬性·最高优先级）★★★**：以下"已收录事件清单"是时间线中已有的事件。候选新闻若与清单中任何一条属同一事件——同一诉讼/同一公告/同一制裁行动，仅因不同媒体转载或报道日期差1-2天——**一律判定为重复，不收**。判定标准：主体机构+行动对象+事件类型相同，且brief/标题语义近似（如"长鑫起诉国防部"各媒体转载、同一232公告的不同报道、同一英伟达白名单事件）。重复是时间线最严重缺陷，宁可漏收不可重收。
+10. **吹风词硬性拦截（硬性）★★★**：候选标题/内容若含以下"未落地"信号词——weighs/mulls/considers/reportedly/said to be preparing/计划/考虑/酝酿/拟/网传/知情人士/正在研究/可能征收/或对——且**无官方正式公告**（白宫 proclamation/FR Doc/行政令/正式新闻稿）确认已签署生效，**一律不收**。白宫官员回应"除非正式宣布否则视为猜测"的消息尤其不收。判据：必须已发生（signed/filed/issued/finalized/listed），而非"正在考虑"。
+11. **来源可信度分级（硬性）**：仅由非权威站点（tech-insider.org/economy.ac/LawStreet Journal/自媒体/SEO站等）报道、无任何官方源或权威媒体（白宫/FR/财政部/Reuters/Bloomberg/新华社等）背书的"新动作"——多为二手转译或AI聚合，**不收**。正式动作必须有官方链接（.gov/.mil/官网）或权威媒体交叉确认。
 """
 
     user_prompt = f"""今天是{TODAY}。last_date={last_date}。
@@ -137,6 +148,14 @@ def deepseek_verify(search_results, last_date, methodology):
 {results_text}
 
 请严格按规则筛选，只输出确认有效的 2026 年新正式动作。如果全部不符合，返回空数组。"""
+
+    if existing_events:
+        user_prompt += f"""
+
+## 时间线已收录事件（近25条，用于跨轮次查重，严禁重复收录）
+{existing_text}
+
+请逐条比对：若上面的候选新闻与这些已收录事件属同一事件（同诉讼/同公告/同制裁，仅媒体或日期不同），必须判为重复剔除。"""
 
     # 调用 DeepSeek API
     url = 'https://api.deepseek.com/chat/completions'
@@ -336,12 +355,70 @@ def main():
     
     # 4. DeepSeek 核实+结构化
     print('调用 DeepSeek API 核实...')
-    result = deepseek_verify(unique_results[:30], last_date, methodology)
+    # 读现有 index.html 提取已收录事件（供跨轮次查重）
+    existing_events = []
+    try:
+        index_file = get_github_file('index.html')
+        index_html = base64.b64decode(index_file['content']).decode('utf-8')
+        # 提取近25条事件摘要
+        m = re.search(r'const EVENTS=\[([\s\S]*?)\];\s*\n\s*const MONTH', index_html)
+        if m:
+            try:
+                import json as _json
+                # 用 Node 风格解析：事件块是 JS 对象字面量，直接尝试解析为 JSON 数组（兼容两种引号格式）
+                events_str = '[' + m.group(1) + ']'
+                # 尝试用 json.loads（处理标准 JSON 格式事件），失败则跳过（手写格式留给 DeepSeek 处理）
+                try:
+                    parsed = _json.loads(events_str)
+                    existing_events = parsed[-25:]
+                except Exception:
+                    # 非标准JSON（手写无引号key），用正则粗提取 date+brief
+                    ev_dates = re.findall(r'date\s*:\s*["\']?(\d{4}-\d{2}-\d{2})', m.group(1))
+                    ev_briefs = re.findall(r'brief\s*:\s*["\']([^"\']{0,80})', m.group(1))
+                    for d, b in zip(ev_dates[-25:], ev_briefs[-25:]):
+                        existing_events.append({'date': d, 'brief': b})
+            except Exception:
+                pass
+    except Exception as e:
+        print(f'  读取已有事件失败(不影响本轮): {e}')
+    print(f'已收录事件(供查重): {len(existing_events)} 条')
+    result = deepseek_verify(unique_results[:30], last_date, methodology, existing_events)
     new_events = result.get('new_events', [])
     summary = result.get('summary', '')
     new_count = result.get('new_count', len(new_events))
     print(f'DeepSeek 返回: {len(new_events)} 条新事件')
     print(f'总结: {summary}')
+    
+    # 4b. 二次硬过滤：吹风词 + 与已收录事件语义重复的硬拦截（Python侧兜底）
+    WIND_WORDS = ['考虑', '酝酿', '拟', '网传', '知情人士', '正在研究', '可能征收', '或对', 'weighs', 'mulls', 'considers', 'reportedly']
+    if new_events:
+        filtered = []
+        for e in new_events:
+            text = (e.get('brief','') + e.get('行动','') + e.get('原文','')).lower()
+            # 吹风词拦截
+            wind_hit = [w for w in WIND_WORDS if w.lower() in text]
+            if wind_hit:
+                print(f'  拦截吹风词 {wind_hit}: {e.get("brief","")[:50]}')
+                continue
+            # 与已收录事件 brief 高度重叠拦截
+            dup = False
+            for oe in existing_events:
+                ob = oe.get('brief','') or ''
+                if len(ob) > 8:
+                    # 共享核心实体词即判重复
+                    eb = e.get('brief','') or ''
+                    for key in ['长鑫', '英伟达', '无人机', '芯片关税', '1260H', '实体清单', 'SDN', 'Kameng', '电力设备', '反倾销', '337']:
+                        if key in eb and key in ob:
+                            print(f'  拦截语义重复(关键词{key}): {eb[:50]} vs 已收: {ob[:50]}')
+                            dup = True
+                            break
+                if dup:
+                    break
+            if not dup:
+                filtered.append(e)
+        if len(filtered) < len(new_events):
+            print(f'二次过滤: {len(new_events)} → {len(filtered)} 条')
+        new_events = filtered
     
     # 5. 更新 HTML
     if new_events:
@@ -351,6 +428,28 @@ def main():
         
         # 追加新事件
         html = append_events(html, new_events)
+        
+        # JS 语法自检（防坏数据上线，历史教训：SyntaxError导致白屏）
+        try:
+            m_ev = re.search(r'const EVENTS=\[([\s\S]*?)\];\s*\n\s*const MONTH', html)
+            if m_ev:
+                import subprocess, tempfile, os as _os
+                node_path = r'C:\Users\31044\.workbuddy\binaries\node\versions\22.22.2-2\node.exe'
+                if _os.path.exists(node_path):
+                    tmp_html = tempfile.mktemp(suffix='.html')
+                    with open(tmp_html, 'w', encoding='utf-8') as f:
+                        f.write(html)
+                    env = dict(_os.environ)
+                    env['TMP_HTML'] = tmp_html
+                    js_check = r"const fs=require('fs');const h=fs.readFileSync(process.env.TMP_HTML,'utf-8');const m=h.match(/const EVENTS=\[([\s\S]*?)\];\s*\n\s*const MONTH/);if(!m)process.exit(1);new Function('return ['+m[1]+']')();"
+                    r = subprocess.run([node_path, '-e', js_check], capture_output=True, text=True, encoding='utf-8', env=env, timeout=30)
+                    _os.remove(tmp_html)
+                    if r.returncode != 0:
+                        print(f'❌ JS 语法自检失败，跳过推送: {r.stderr[:200]}')
+                        return
+                    print('✅ JS 语法自检通过')
+        except Exception as e:
+            print(f'  JS 自检异常(继续): {e}')
         
         # 更新计数
         new_nodes = date_nodes  # 需要根据新事件计算
