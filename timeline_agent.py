@@ -96,7 +96,7 @@ def deepseek_verify(search_results, last_date, methodology, existing_events=None
     existing_text = ''
     if existing_events:
         existing_text = '\n'.join([
-            f"- [{e.get('date','')}] ({e.get('type','')}) {e.get('agency','')}: {e.get('brief','')[:60]}"
+            f"- [{e.get('date','')}] ({e.get('type','')}) {e.get('agency','')}: {e.get('brief','')[:90]}"
             for e in existing_events[-25:]  # 只给最近25条，省token
         ])
     
@@ -139,6 +139,8 @@ def deepseek_verify(search_results, last_date, methodology, existing_events=None
 9. **跨轮次语义查重（硬性·最高优先级）★★★**：以下"已收录事件清单"是时间线中已有的事件。候选新闻若与清单中任何一条属同一事件——同一诉讼/同一公告/同一制裁行动，仅因不同媒体转载或报道日期差1-2天——**一律判定为重复，不收**。判定标准：主体机构+行动对象+事件类型相同，且brief/标题语义近似（如"长鑫起诉国防部"各媒体转载、同一232公告的不同报道、同一英伟达白名单事件）。重复是时间线最严重缺陷，宁可漏收不可重收。
 10. **吹风词硬性拦截（硬性）★★★**：候选标题/内容若含以下"未落地"信号词——weighs/mulls/considers/reportedly/said to be preparing/计划/考虑/酝酿/拟/网传/知情人士/正在研究/可能征收/或对——且**无官方正式公告**（白宫 proclamation/FR Doc/行政令/正式新闻稿）确认已签署生效，**一律不收**。白宫官员回应"除非正式宣布否则视为猜测"的消息尤其不收。判据：必须已发生（signed/filed/issued/finalized/listed），而非"正在考虑"。
 11. **来源可信度分级（硬性）**：仅由非权威站点（tech-insider.org/economy.ac/LawStreet Journal/自媒体/SEO站等）报道、无任何官方源或权威媒体（白宫/FR/财政部/Reuters/Bloomberg/新华社等）背书的"新动作"——多为二手转译或AI聚合，**不收**。正式动作必须有官方链接（.gov/.mil/官网）或权威媒体交叉确认。
+12. **解读/评论类文章不得作为事件源（硬性·9/2事故新增）★★★**：来源为**律所分析（如globaltradeandsanctionslaw.com等）、行业研究机构（如Benchmark Mineral Intelligence等）、咨询公司博客**的文章，若其正文是在解读/回顾已发生动作（提到"8月24日行动""第14420号行政令""Operation Economic Outcast"等旧日期/旧编号作为背景），**即使文章新发布也不收**——这类文章是二手评论，不是官方新动作。判据：正文中引用的动作日期/编号对应的时间线已有事件，无任何新的FR Doc/制裁名单/公告/命令。9/2 事故：律所文章把8/24 OFAC经济驱逐重述为"启动Operation Economic Outcast扩大次级制裁"、行业机构把8/26行政令重述为"限制BESS进口"，均判重复剔除。
+13. **"回顾旧动作"识别（硬性）★★**：候选文章若正文明确引用 last_date 之前的动作日期（如"8月13日公告""8月24日制裁""8月26日行政令"）或既有命令编号（第14420号/FR Doc 2026-xxx），且其"新意"仅是解读、预测后续影响——**不收为新事件**，判为旧事件解读。只有官方正式发布的新动作（新FR Doc/新名单/新命令/新公告）才收。
 """
 
     user_prompt = f"""今天是{TODAY}。last_date={last_date}。
@@ -363,22 +365,39 @@ def main():
         # 提取近25条事件摘要
         m = re.search(r'const EVENTS=\[([\s\S]*?)\];\s*\n\s*const MONTH', index_html)
         if m:
+            import json as _json
+            events_str = '[' + m.group(1) + ']'
+            # 优先用 Node 解析（兼容 JSON 与手写无引号key两种格式）
+            node_ok = False
             try:
-                import json as _json
-                # 用 Node 风格解析：事件块是 JS 对象字面量，直接尝试解析为 JSON 数组（兼容两种引号格式）
-                events_str = '[' + m.group(1) + ']'
-                # 尝试用 json.loads（处理标准 JSON 格式事件），失败则跳过（手写格式留给 DeepSeek 处理）
+                import subprocess, tempfile, os as _os
+                node_path = _os.environ.get('NODE_PATH_BIN', r'C:\Users\31044\.workbuddy\binaries\node\versions\22.22.2-2\node.exe')
+                if not _os.path.exists(node_path):
+                    # GitHub Actions 环境用系统 node
+                    node_path = 'node'
+                # 把 events_str 写临时 js 文件由 node 解析
+                tmp_js = tempfile.mktemp(suffix='.js')
+                with open(tmp_js, 'w', encoding='utf-8') as f:
+                    f.write('const evs = ' + events_str + '; console.log(JSON.stringify(evs.slice(-30)));')
+                r = subprocess.run([node_path, tmp_js], capture_output=True, text=True, encoding='utf-8', timeout=20)
+                _os.remove(tmp_js)
+                if r.returncode == 0 and r.stdout.strip():
+                    parsed = _json.loads(r.stdout.strip())
+                    existing_events = parsed
+                    node_ok = True
+            except Exception:
+                pass
+            if not node_ok:
+                # fallback: json.loads（标准JSON格式）
                 try:
                     parsed = _json.loads(events_str)
                     existing_events = parsed[-25:]
                 except Exception:
                     # 非标准JSON（手写无引号key），用正则粗提取 date+brief
                     ev_dates = re.findall(r'date\s*:\s*["\']?(\d{4}-\d{2}-\d{2})', m.group(1))
-                    ev_briefs = re.findall(r'brief\s*:\s*["\']([^"\']{0,80})', m.group(1))
+                    ev_briefs = re.findall(r'brief\s*:\s*["\']([^"\']{0,90})', m.group(1))
                     for d, b in zip(ev_dates[-25:], ev_briefs[-25:]):
                         existing_events.append({'date': d, 'brief': b})
-            except Exception:
-                pass
     except Exception as e:
         print(f'  读取已有事件失败(不影响本轮): {e}')
     print(f'已收录事件(供查重): {len(existing_events)} 条')
@@ -390,7 +409,13 @@ def main():
     print(f'总结: {summary}')
     
     # 4b. 二次硬过滤：吹风词 + 与已收录事件语义重复的硬拦截（Python侧兜底）
-    WIND_WORDS = ['考虑', '酝酿', '拟', '网传', '知情人士', '正在研究', '可能征收', '或对', 'weighs', 'mulls', 'considers', 'reportedly']
+    WIND_WORDS = ['考虑', '酝酿', '拟', '网传', '知情人士', '正在研究', '可能征收', '或对', 'weighs', 'mulls', 'considers', 'reportedly', 'preparing']
+    # 语义重复关键词表：事件主体/行动对象特征词（覆盖历史所有事故品类）
+    DUP_KEYS = ['长鑫', 'CXMT', '英伟达', 'Nvidia', '白名单', '无人机', '芯片关税', 'laptop', 'server', '1260H', '实体清单',
+                'SDN', 'Kameng', '电力设备', 'BESS', '储能', '电网', '行政令', 'Executive Order', '14420',
+                '反倾销', '337', '日落', 'UFLPA', '涉疆', '多晶硅', '无人机', '232', '301',
+                '经济驱逐', '次级制裁', '伊朗', 'Iran', 'OFAC', '制裁', 'sanction',
+                '反制清单', '不可靠实体', '稀土', '镓', '锗', '网络安全审查', '半导体', 'chip']
     if new_events:
         filtered = []
         for e in new_events:
@@ -400,19 +425,34 @@ def main():
             if wind_hit:
                 print(f'  拦截吹风词 {wind_hit}: {e.get("brief","")[:50]}')
                 continue
-            # 与已收录事件 brief 高度重叠拦截
+            # 与已收录事件语义重复拦截：日期窗口±3天 + 共享特征词
             dup = False
+            new_date = e.get('date','')
+            eb = e.get('brief','') or ''
             for oe in existing_events:
                 ob = oe.get('brief','') or ''
-                if len(ob) > 8:
-                    # 共享核心实体词即判重复
-                    eb = e.get('brief','') or ''
-                    for key in ['长鑫', '英伟达', '无人机', '芯片关税', '1260H', '实体清单', 'SDN', 'Kameng', '电力设备', '反倾销', '337']:
-                        if key in eb and key in ob:
-                            print(f'  拦截语义重复(关键词{key}): {eb[:50]} vs 已收: {ob[:50]}')
-                            dup = True
-                            break
-                if dup:
+                od = oe.get('date','')
+                if len(ob) < 8:
+                    continue
+                # 日期窗口：±5天内（解读文章日期可能滞后数天）
+                in_window = False
+                try:
+                    from datetime import datetime as _dt
+                    nd = _dt.strptime(new_date, '%Y-%m-%d') if new_date else None
+                    odt = _dt.strptime(od, '%Y-%m-%d') if od else None
+                    if nd and odt:
+                        in_window = abs((nd - odt).days) <= 5
+                except Exception:
+                    pass
+                shared = [k for k in DUP_KEYS if k.lower() in eb.lower() and k.lower() in ob.lower()]
+                if shared and in_window:
+                    print(f'  拦截语义重复(共享{shared}, 窗口内): [{new_date}]{eb[:45]} vs [{od}]{ob[:45]}')
+                    dup = True
+                    break
+                # 即使日期超窗，若 brief 极高相似（同机构+同对象）也拦
+                if shared and new_date and od and new_date[:7] == od[:7]:
+                    print(f'  拦截语义重复(共享{shared}, 同月): [{new_date}]{eb[:45]} vs [{od}]{ob[:45]}')
+                    dup = True
                     break
             if not dup:
                 filtered.append(e)
