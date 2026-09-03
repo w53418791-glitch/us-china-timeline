@@ -425,33 +425,34 @@ def main():
             if wind_hit:
                 print(f'  拦截吹风词 {wind_hit}: {e.get("brief","")[:50]}')
                 continue
-            # 与已收录事件语义重复拦截：日期窗口±3天 + 共享特征词
+            # 与已收录事件语义重复拦截：日期窗口±10天 + 共享特征词（brief+行动双字段比对）
             dup = False
             new_date = e.get('date','')
-            eb = e.get('brief','') or ''
+            eb = (e.get('brief','') or '') + ' ' + (e.get('行动','') or '')
             for oe in existing_events:
-                ob = oe.get('brief','') or ''
+                ob = (oe.get('brief','') or '') + ' ' + (oe.get('行动','') or '')
                 od = oe.get('date','')
                 if len(ob) < 8:
                     continue
-                # 日期窗口：±5天内（解读文章日期可能滞后数天）
+                # 日期窗口：±10天内（解读文章/转载日期可能滞后数天至一周）
                 in_window = False
                 try:
                     from datetime import datetime as _dt
                     nd = _dt.strptime(new_date, '%Y-%m-%d') if new_date else None
                     odt = _dt.strptime(od, '%Y-%m-%d') if od else None
                     if nd and odt:
-                        in_window = abs((nd - odt).days) <= 5
+                        in_window = abs((nd - odt).days) <= 10
                 except Exception:
                     pass
                 shared = [k for k in DUP_KEYS if k.lower() in eb.lower() and k.lower() in ob.lower()]
+                # 共享≥1个高区分度特征词且窗口内 → 判重复
                 if shared and in_window:
-                    print(f'  拦截语义重复(共享{shared}, 窗口内): [{new_date}]{eb[:45]} vs [{od}]{ob[:45]}')
+                    print(f'  拦截语义重复(共享{shared}, {od}±10天内): [{new_date}]{(e.get("brief","") or "")[:45]} vs [{od}]{(oe.get("brief","") or "")[:45]}')
                     dup = True
                     break
-                # 即使日期超窗，若 brief 极高相似（同机构+同对象）也拦
-                if shared and new_date and od and new_date[:7] == od[:7]:
-                    print(f'  拦截语义重复(共享{shared}, 同月): [{new_date}]{eb[:45]} vs [{od}]{ob[:45]}')
+                # 即使日期超窗，若共享词≥2且同月也拦（防滞后更久的解读）
+                if len(shared) >= 2 and new_date and od and new_date[:7] == od[:7]:
+                    print(f'  拦截语义重复(共享{shared}, 同月): [{new_date}]{(e.get("brief","") or "")[:45]} vs [{od}]{(oe.get("brief","") or "")[:45]}')
                     dup = True
                     break
             if not dup:
