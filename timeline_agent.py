@@ -284,6 +284,74 @@ def mfa_search(last_date):
     print(f'  外交部发言人: {len(results)} 条候选 (last_date={last_date} 后)')
     return results[:20]
 
+# ========== 2b. 公众号反查（reverse check） ==========
+def reverse_check_leads(reverse_leads, last_date):
+    """依据公众号 reverse_leads 的 keywords 反向在官方源核实
+    命中官方条目才返回（作为补录候选）；公众号本身不能作为收录依据"""
+    if not reverse_leads:
+        return []
+    found = []
+    print(f'--- 公众号反查: {len(reverse_leads)} 条线索 ---')
+    for lead in reverse_leads[:5]:
+        keywords = lead.get('keywords') or []
+        title_hint = lead.get('动作摘要', '')[:40]
+        if not keywords:
+            continue
+        hit = None
+        # 1) FR API 关键词搜索（美方动作主通道）
+        for kw in keywords[:3]:
+            try:
+                url = 'https://www.federalregister.gov/api/v1/documents.json?' + urllib.parse.urlencode({
+                    'conditions[term]': kw,
+                    'conditions[publication_date][gte]': last_date,
+                    'per_page': 5,
+                    'order': 'newest'
+                })
+                req = urllib.request.Request(url, headers={'User-Agent': 'timeline-agent/1.0'})
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    data = json.loads(r.read().decode())
+                for doc in data.get('results', [])[:3]:
+                    title = doc.get('title', '')
+                    if any(k.lower() in title.lower() for k in keywords if len(k) > 3):
+                        hit = {
+                            'title': title,
+                            'url': doc.get('html_url', ''),
+                            'date': doc.get('publication_date', ''),
+                            'snippet': (doc.get('abstract') or '')[:200],
+                            'agency': 'Federal Register(反查命中)',
+                            'source': 'federalregister.gov(公众号反查)',
+                            'reverse_hint': title_hint
+                        }
+                        break
+                if hit:
+                    break
+            except Exception as e:
+                print(f'    反查FR失败({kw}): {str(e)[:60]}')
+        # 2) 白宫 actions 关键词匹配
+        if not hit and any(k in title_hint for k in ['公告', '关税', 'proclamation', 'tariff', '行政令', 'executive']):
+            try:
+                wh_html = fetch_url('https://www.whitehouse.gov/presidential-actions/')
+                if wh_html:
+                    for li in re.findall(r'<li[^>]*data-wp-key[^>]*>(.*?)</li>', wh_html, re.DOTALL):
+                        am = re.search(r'<h[234][^>]*>\s*<a href="(https://www\.whitehouse\.gov/presidential-actions/[^"]+)"[^>]*>(.*?)</a>', li, re.DOTALL)
+                        if not am:
+                            continue
+                        t = re.sub(r'<[^>]+>', '', am.group(2)).strip()
+                        tl = t.lower()
+                        if any(k.lower() in tl for k in keywords if len(k) > 3):
+                            hit = {'title': t, 'url': am.group(1), 'date': '',
+                                   'snippet': '', 'agency': '白宫(反查命中)',
+                                   'source': 'whitehouse.gov(公众号反查)', 'reverse_hint': title_hint}
+                            break
+            except Exception:
+                pass
+        if hit:
+            print(f'  ✅ 反查命中: {hit["title"][:60]} (线索: {title_hint})')
+            found.append(hit)
+        else:
+            print(f'  ⏭ 反查无官方命中, 不收录: {title_hint}')
+    return found
+
 # ========== 3. DeepSeek 核实+结构化 ==========
 def deepseek_verify(search_results, last_date, methodology, existing_events=None, gzh_material=None):
     """用 DeepSeek V3 核实搜索结果并输出结构化事件
@@ -334,9 +402,21 @@ def deepseek_verify(search_results, last_date, methodology, existing_events=None
       "url": "来源URL"
     }}
   ],
+  "reverse_leads": [
+    {{
+      "title": "公众号报道标题",
+      "动作摘要": "公众号描述的已落地动作(制裁/反制/关税等)",
+      "gzh": "报道公众号名",
+      "推测机构": "如 OFAC/BIS/白宫/商务部/外交部",
+      "推测日期": "YYYY-MM-DD(如可判断)",
+      "keywords": ["英文检索词", "中文检索词"]  
+    }}
+  ],
   "summary": "本轮检索总结",
   "new_count": 0
 }}
+
+reverse_leads 规则：从"公众号检索素材"中识别**公众号明确报道已落地(非吹风)、但本轮候选官方动作中未见对应条目**的新动作线索（最多5条）。每条给2-4个检索词用于反向在官方源核实。若全部对应已有候选/已收录，返回空数组。
 
 ## 核实规则（硬性）
 0. **候选来源说明**：候选已改为**官方源直抓**（白宫 presidential-actions / OFAC recent-actions / Federal Register / ITC / 商务部 / 外交部官网），信源类型标注在每条"信源类型"字段，默认可信度高。你的任务是**核实该官方动作是否确为对华相关新动作 + 提取结构化字段**，而非再判断来源网站可信度。
@@ -375,7 +455,9 @@ def deepseek_verify(search_results, last_date, methodology, existing_events=None
         user_prompt += f"""
 
 ## 公众号检索素材（合规观澜/贸易夜航/合规视点/聆听美讯/USA yesterday）
-以下为本轮公众号名检索命中，仅作"分析"字段的引用参考（判断某公众号是否有相关专题），**不影响事件是否收录**：
+以下为本轮公众号名检索命中。公众号素材有**双重作用**：
+1. **分析引用**：判断某公众号是否有相关专题，供"分析"字段引用（不影响收录）
+2. **反查线索（重要）**：若某公众号**明确报道了一个已落地的制裁/反制裁动作**（已签署/已列入/已生效，非吹风非评论），但上面的候选官方动作里**看不到对应条目**——说明该动作可能被官方源直抓遗漏，请填入 reverse_leads，给出检索词供反向核实。
 
 {gzh_text}"""
 
@@ -590,8 +672,28 @@ def main():
     new_events = result.get('new_events', [])
     summary = result.get('summary', '')
     new_count = result.get('new_count', len(new_events))
-    print(f'DeepSeek 返回: {len(new_events)} 条新事件')
+    reverse_leads = result.get('reverse_leads') or []
+    print(f'DeepSeek 返回: {len(new_events)} 条新事件, {len(reverse_leads)} 条反查线索')
     print(f'总结: {summary}')
+
+    # 4a. 公众号反查: reverse_leads 反向在官方源核实命中后补入候选，二次确认
+    if reverse_leads:
+        reverse_hits = reverse_check_leads(reverse_leads, last_date)
+        if reverse_hits:
+            # 反查命中项与已有候选/已收录去重后送 DeepSeek 二次确认
+            print(f'反查命中 {len(reverse_hits)} 条, 送 DeepSeek 二次确认...')
+            result2 = deepseek_verify(reverse_hits, last_date, methodology, existing_events, gzh_material)
+            new_from_reverse = result2.get('new_events', [])
+            if new_from_reverse:
+                print(f'  反查确认收录: {len(new_from_reverse)} 条')
+                # 标注来源含公众号反查
+                for e in new_from_reverse:
+                    src = e.get('来源', '')
+                    if '反查' not in src:
+                        e['来源'] = (src + ' / 公众号反查确认' if src else '公众号反查确认')
+                new_events.extend(new_from_reverse)
+            else:
+                print('  反查命中项经 DeepSeek 核实不符收录规则, 不收录')
     
     # 4b. 二次硬过滤：吹风词 + 与已收录事件语义重复的硬拦截（Python侧兜底）
     WIND_WORDS = ['考虑', '酝酿', '拟', '网传', '知情人士', '正在研究', '可能征收', '或对', 'weighs', 'mulls', 'considers', 'reportedly', 'preparing']
