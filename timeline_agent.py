@@ -237,6 +237,7 @@ def mofcom_search(last_date):
     results = []
     seen = set()
     # 匹配新闻链接与标题（商务部页面常见 /article/ 路径或绝对URL）
+    # 注意: 日期必须从页面真实提取，绝不默认"今天"——9/3事故(答问全标运行当天)
     for m in re.finditer(r'<a[^>]+href="([^"]+)"[^>]*>([^<]{10,120})</a>', full):
         url = m.group(1)
         title = m.group(2).strip()
@@ -250,14 +251,28 @@ def mofcom_search(last_date):
             url = 'http://www.mofcom.gov.cn' + (url if url.startswith('/') else '/' + url)
         seen.add(url)
         # 9/3事故修正: 答记者问/答问/例行记者会 = 纯表态回应, 源头剔除不进候选。
-        # 商务部实质性动作以"公告/令/决定/通知"形式发布（如"对X反倾销立案调查公告"），
-        # 或标题直接宣告动作（含"反制/列入/启动/实施/暂停/初裁/终裁"且不含"答记者问"）。
         if any(k in title for k in ['答记者问', '答问', '例行记者会', '回应', '答中外记者']):
             continue  # 纯表态，不收录
-        if any(k in title for k in ['反制', '不可靠实体', '出口管制', '反倾销', '反补贴', '暂停进口',
-                                     '两用物项', '管控名单', '初裁', '终裁', '贸易救济', '关税措施', '立案调查']):
-            results.append({'title': title, 'url': url,
-                           'date': '', 'snippet': '', 'agency': '商务部', 'source': 'mofcom.gov.cn(直抓)'})
+        if not any(k in title for k in ['反制', '不可靠实体', '出口管制', '反倾销', '反补贴', '暂停进口',
+                                        '两用物项', '管控名单', '初裁', '终裁', '贸易救济', '关税措施', '立案调查', '公告', '令']):
+            continue
+        # 从 URL 或标题上下文提取真实日期
+        date_fmt = ''
+        # 方法1: URL 含日期 (art_2026/0903/... 或 /2026/09/03/)
+        dm = re.search(r'20\d{2}[/\-_]?\d{2}[/\-_]?\d{2}', url)
+        if dm:
+            ds = dm.group(0)
+            parts = re.findall(r'\d+', ds)
+            if len(parts) >= 3 and 2000 <= int(parts[0]) <= 2100:
+                date_fmt = f'{parts[0]}-{int(parts[1]):02d}-{int(parts[2]):02d}'
+        # 方法2: 链接前文 500 字符内找日期文本
+        if not date_fmt:
+            seg = full[max(0, m.start()-500):m.start()+100]
+            dm2 = re.search(r'(20\d{2})[-/年](\d{1,2})[-/月](\d{1,2})', seg)
+            if dm2:
+                date_fmt = f'{dm2.group(1)}-{int(dm2.group(2)):02d}-{int(dm2.group(3)):02d}'
+        results.append({'title': title, 'url': url,
+                       'date': date_fmt, 'snippet': '', 'agency': '商务部', 'source': 'mofcom.gov.cn(直抓)'})
     print(f'  商务部新闻/政策: {len(results)} 条候选')
     return results[:20]
 
@@ -409,7 +424,8 @@ def deepseek_verify(search_results, last_date, methodology, existing_events=None
       "分析": "逐条AI分析(为何用/逻辑/意义)——必须引用合规观澜/贸易夜航/合规视点/聆听美讯/USA yesterday至少一个",
       "原文": "原文引用",
       "来源": "来源",
-      "url": "来源URL"
+      "url": "来源URL",
+      "_src_hint": "该候选来自哪个检索通道(whitehouse/ofac/fr/itc/mofcom/mfa/gzh/reverse)，用于下游日期校验"
     }}
   ],
   "reverse_leads": [
@@ -430,6 +446,7 @@ reverse_leads 规则：从"公众号检索素材"中识别**公众号明确报�
 
 ## 核实规则（硬性）
 0. **候选来源说明**：候选已改为**官方源直抓**（白宫 presidential-actions / OFAC recent-actions / Federal Register / ITC / 商务部 / 外交部官网），信源类型标注在每条"信源类型"字段，默认可信度高。你的任务是**核实该官方动作是否确为对华相关新动作 + 提取结构化字段**，而非再判断来源网站可信度。
+0b. **日期准确性（硬性·最高优先级·9/4事故修正）★★★**：事件的 date 必须是**动作真实发布日期**（从候选信息中提取：FR Doc publication_date / OFAC 公告日期 / 白宫 time 标签 / 标题内嵌日期等）。候选 date 为空或无法确定真实发布日期时，**必须返回空字符串 "" 而不是臆断为今天**——宁可漏收，不可把历史动作错标到运行当天。9/3 事故：商务部多条答记者问（实际发布日各异，多为 8 月下旬）被全部标成 9/3（运行日），严重错误。若 date 为空且无法从 URL/正文确定，将该条放入 summary 说明"日期无法确认已跳过"，不要输出到 new_events。
 1. 只收录 last_date({last_date}) 之后发布的新正式动作
 2. 放风/草案/独家消息一律不收
 3. 年份三重验证：URL年份/正文日期/事件上下文，剔除2025年及更早旧闻
@@ -718,6 +735,17 @@ def main():
     if new_events:
         filtered = []
         for e in new_events:
+            # 4b0. 日期硬校验（9/4事故修正）★★★
+            #    date 缺失/为空 → 拒收（不得用"运行当天"臆断发布日，宁可漏收不可错标）
+            #    date == TODAY 且 _src_hint 是商务部/外交部官网/gzh 列表 → 高度可疑
+            ed = e.get('date', '')
+            src = e.get('_src_hint', '') or e.get('source', '') or e.get('来源', '')
+            if not ed:
+                print(f'  拦截空日期: {e.get("brief","")[:50]}')
+                continue
+            if ed == TODAY and any(k in src for k in ['mofcom', 'mfa', 'gzh']):
+                print(f'  拦截可疑日期(=运行日, 官网列表臆断): [{ed}] {e.get("brief","")[:50]}')
+                continue
             text = (e.get('brief','') + e.get('行动','') + e.get('原文','')).lower()
             # 吹风词拦截
             wind_hit = [w for w in WIND_WORDS if w.lower() in text]
@@ -726,7 +754,7 @@ def main():
                 continue
             # 与已收录事件语义重复拦截：日期窗口±10天 + 共享特征词（brief+行动双字段比对）
             dup = False
-            new_date = e.get('date','')
+            new_date = ed
             eb = (e.get('brief','') or '') + ' ' + (e.get('行动','') or '')
             for oe in existing_events:
                 ob = (oe.get('brief','') or '') + ' ' + (oe.get('行动','') or '')
