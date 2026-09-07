@@ -146,16 +146,34 @@ def federal_register_search(last_date):
         with urllib.request.urlopen(req, timeout=15) as r:
             data = json.loads(r.read().decode())
         results = []
-        for doc in data.get('results', [])[:20]:
+        # 9/7修正: 源头剔除个别商品AD/CVD程序性文件(日落复审/反规避/立案/初裁延期/令延续/复审终裁/301排除)
+        # 保留: BIS实体清单/EAR规则/OFAC/行政令/232/337终裁/行业级
+        skip_patterns = [
+            r'sunset review', r'five-year', r'circumvention inquiry', r'anticircumvention',
+            r'institution of antidumping', r'initiation of antidumping', r'preliminary',
+            r'final results of antidumping', r'administrative review', r'continuation of',
+            r'order, finding', r'petroleum wax candles', r'from the people\'s republic of china(?:;|:| and|,|$)',
+            r'antidumping or countervailing duty order, finding', r'notice of conformance',
+            r'extension of', r'tolling', r'exclusion', r'product exclusion',
+            r'aluminum containers', r'alkyl phosphate', r'choline salts', r'tris', r'hand trucks',
+            r'steel grating', r'rectangular pipe', r'polyethylene retail', r'polyethylene terephthalate',
+            r'van-type trailers', r'pure magnesium', r'ammonium sulfate', r'light-walled',
+        ]
+        skip_re = re.compile('|'.join(skip_patterns), re.IGNORECASE)
+        for doc in data.get('results', [])[:25]:
+            title = doc.get('title', '')
+            if skip_re.search(title):
+                continue
             ags = doc.get('agencies') or []
             results.append({
-                'title': doc.get('title', ''),
+                'title': title,
                 'url': doc.get('html_url', ''),
                 'date': doc.get('publication_date', ''),
                 'snippet': (doc.get('abstract') or '')[:300],
                 'agency': ags[0].get('name', '') if ags else '',
                 'source': 'federalregister.gov(API)'
             })
+        print(f'  FR过滤后: {len(results)}/{len(data.get("results", []))} 条 (剔除AD/CVD个别商品程序性文件)')
         return results
     except Exception as e:
         print(f'  Federal Register 搜索失败: {e}')
@@ -450,7 +468,7 @@ reverse_leads 规则：从"公众号检索素材"中识别**公众号明确报�
 1. 只收录 last_date({last_date}) 之后发布的新正式动作
 2. 放风/草案/独家消息一律不收
 3. 年份三重验证：URL年份/正文日期/事件上下文，剔除2025年及更早旧闻
-4. ITC仅收终裁/初裁/排除令/禁止令；不收立案/投诉受理/日落复审/程序启动
+4. **个别商品AD/CVD不收（硬性·9/7强化）★★★**：时间线**不收"个别具体商品"的美方贸易救济个案裁定**——反倾销/反补贴的立案、初裁、延期、终裁、行政复审、**日落复审(全部剔除)**、反规避调查、令延续/继续有效通知；ITC双反产业损害裁定；USTR 301产品排除项修订。仅当商品构成**系统性政策信号**(多晶硅232行业关税/整类设备管制)才收。**保留**: ITC 337终裁/排除令/禁止令(知识产权整体排除工具)；中方对美发起的中方贸易救济(如碧根果反倾销初裁,属中方反制)。9/7事故: FR自动轮次误收钢格板/烷基磷酸酯/胆碱盐/薄壁矩形管/手推车/Tris/301排除项/铝容器共9条个别商品裁定,全部删除。
 5. 不补录前序遗漏，只收 last_date 之后的新动作
 6. 分析部分必须引用合规观澜、贸易夜航、合规视点、聆听美讯、USA yesterday 至少一个公众号（若暂无专题则标注"公众号暂无专题，分析综合其他权威源"）
 7. **主体识别**：必须明确涉及中国政府/企业/实体，或美方明确针对中国；泛指"外国"的总统公告（如232/电力行政令）虽未点名中国但影响中国也收录，需在分析中说明影响路径
