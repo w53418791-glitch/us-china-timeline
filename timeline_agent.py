@@ -598,7 +598,7 @@ def update_scrollbar(html_content, nodes, actions):
     # 匹配 <b>数字</b> 个日期节点
     html_content = re.sub(
         r'共 <b>\d+</b> 个日期节点.*?<b>\d+</b> 项动作[^<]*',
-        f'共 <b>{nodes}</b> 个日期节点 · <b>3</b> 场一轨对话 · <b>{actions}</b> 项动作（ITC仅收337终裁/排除令+双反终裁；不收立案/初裁/日落复审）· 数据截至 {TODAY}',
+        f'共 <b>{nodes}</b> 个日期节点 · <b>3</b> 场一轨对话 · <b>{actions}</b> 项动作（ITC仅收337终裁/排除令；不收个别商品反倾销/反补贴立案·初裁·延期·日落复审·反规避·令延续；不收吹风）· 数据截至 {TODAY_CN}',
         html_content
     )
     # 更新 header range
@@ -763,6 +763,12 @@ def main():
                 continue
             if ed == TODAY and any(k in src for k in ['mofcom', 'mfa', 'gzh']):
                 print(f'  拦截可疑日期(=运行日, 官网列表臆断): [{ed}] {e.get("brief","")[:50]}')
+                continue
+            # 4b1. 只增不改原则（9/7用户约定）★★★
+            #    自动轮次只允许追加 last_date 之后(含当天)的新事件，严禁产生早于 last_date 的历史条目
+            #    （即使 DeepSeek 补录/反查给出旧日期也拦截——历史修正只由人工在对话中执行）
+            if ed < last_date:
+                print(f'  拦截历史日期({ed}<{last_date}, 只增不改): {e.get("brief","")[:50]}')
                 continue
             text = (e.get('brief','') + e.get('行动','') + e.get('原文','')).lower()
             # 吹风词拦截
