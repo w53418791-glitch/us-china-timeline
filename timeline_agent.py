@@ -243,56 +243,75 @@ def _fetch_auto_encode(url, timeout=20):
     return ''
 
 def mofcom_search(last_date):
-    """商务部新闻发布+政策发布页直抓（反制公告/不可靠实体清单/反倾销等一手源）"""
-    # 新闻发布栏目（含例行发布会答问/公告）
-    html = _fetch_auto_encode('http://www.mofcom.gov.cn/xwfb/index.html')
-    # 政策发布栏目（公告/令/办法）
-    html2 = _fetch_auto_encode('http://www.mofcom.gov.cn/zwgk/zcfb/index.html')
-    full = (html or '') + '\n' + (html2 or '')
-    if not full.strip():
+    """商务部直抓（反制公告/不可靠实体清单/贸易救济等一手源）
+    数据源: ① 首页(承载"政策发布/公告"列表, 条目为 <li><a href="/zwgk/zcfb/art/2026/art_xxx.html">
+                标题</a><p>...<i>09-10</i></p></li>)
+            ② xwfb 新闻发布栏目
+    注: /zwgk/zcfb/index.html 只是栏目壳(仅 1 条导航链接)，公告列表实际挂在首页——
+        9/10 漏收"商务部公告2026年第38号(碧根果反倾销调查期限延长)"的根因
+    注: 日期必须从页面真实提取(<i>MM-DD</i>)，绝不默认"今天"——9/3事故(答问全标运行当天)
+    """
+    home = _fetch_auto_encode('http://www.mofcom.gov.cn/')
+    news = _fetch_auto_encode('http://www.mofcom.gov.cn/xwfb/index.html')
+    if not (home or news):
         print('  商务部: 抓取失败(跳过)')
         return []
     results = []
     seen = set()
-    # 匹配新闻链接与标题（商务部页面常见 /article/ 路径或绝对URL）
-    # 注意: 日期必须从页面真实提取，绝不默认"今天"——9/3事故(答问全标运行当天)
-    for m in re.finditer(r'<a[^>]+href="([^"]+)"[^>]*>([^<]{10,120})</a>', full):
-        url = m.group(1)
-        title = m.group(2).strip()
-        title = re.sub(r'\s+', ' ', title)
+    # 仅收涉美条目：本时间线定位为中美博弈，涉日/涉欧等他国案件不收
+    US_KW = ['美国', '美方', '对美', '涉美', '美企', '美产']
+    BAD_KW = ['答记者问', '答问', '例行记者会', '答中外记者']  # 纯表态不收录
+    ACT_KW = ['反制', '不可靠实体', '出口管制', '反倾销', '反补贴', '暂停进口', '两用物项',
+              '管控名单', '初裁', '终裁', '贸易救济', '关税措施', '立案调查', '公告', '决定', '令']
+
+    # --- A. 首页"政策发布"公告（正式公告/决定，最高价值）---
+    for m in re.finditer(r'<li[^>]*>(.*?)</li>', home or '', re.DOTALL):
+        blk = m.group(1)
+        am = re.search(r'<a[^>]+href="([^"]*?/zwgk/zcfb/art/\d{4}/art_[^"]+\.html)"[^>]*>(.*?)</a>', blk, re.DOTALL)
+        if not am:
+            continue
+        rel = am.group(1)
+        url = rel if rel.startswith('http') else 'http://www.mofcom.gov.cn' + rel
+        title = re.sub(r'<[^>]+>', '', am.group(2))
+        title = re.sub(r'\s+', ' ', title).strip()
+        if not title or url in seen or len(title) < 8:
+            continue
+        if any(k in title for k in BAD_KW):
+            continue
+        if not any(k in title for k in US_KW):
+            continue  # 非涉美案件不收
+        if not any(k in title for k in ACT_KW):
+            continue
+        # 日期：<i>MM-DD</i>（无年份，按 2026 处理）
+        dt = re.search(r'<i>\s*(\d{1,2})-(\d{1,2})\s*</i>', blk)
+        date_fmt = f'2026-{int(dt.group(1)):02d}-{int(dt.group(2)):02d}' if dt else ''
+        seen.add(url)
+        results.append({'title': title, 'url': url, 'date': date_fmt,
+                        'snippet': '', 'agency': '商务部(公告)', 'source': 'mofcom.gov.cn/首页公告(直抓)'})
+
+    # --- B. xwfb 新闻发布栏目（新闻稿，非公告）---
+    for m in re.finditer(r'<a[^>]+href="([^"]+)"[^>]*>([^<]{10,120})</a>', news or ''):
+        url, title = m.group(1), re.sub(r'\s+', ' ', m.group(2)).strip()
         if not title or url in seen or len(title) < 10:
             continue
-        # 只取文章类链接
         if 'article' not in url and 'index' in url:
             continue
         if not url.startswith('http'):
             url = 'http://www.mofcom.gov.cn' + (url if url.startswith('/') else '/' + url)
-        seen.add(url)
-        # 9/3事故修正: 答记者问/答问/例行记者会 = 纯表态回应, 源头剔除不进候选。
-        if any(k in title for k in ['答记者问', '答问', '例行记者会', '回应', '答中外记者']):
+        if any(k in title for k in BAD_KW):
             continue  # 纯表态，不收录
-        if not any(k in title for k in ['反制', '不可靠实体', '出口管制', '反倾销', '反补贴', '暂停进口',
-                                        '两用物项', '管控名单', '初裁', '终裁', '贸易救济', '关税措施', '立案调查', '公告', '令']):
+        if not any(k in title for k in US_KW):
             continue
-        # 从 URL 或标题上下文提取真实日期
-        date_fmt = ''
-        # 方法1: URL 含日期 (art_2026/0903/... 或 /2026/09/03/)
-        dm = re.search(r'20\d{2}[/\-_]?\d{2}[/\-_]?\d{2}', url)
-        if dm:
-            ds = dm.group(0)
-            parts = re.findall(r'\d+', ds)
-            if len(parts) >= 3 and 2000 <= int(parts[0]) <= 2100:
-                date_fmt = f'{parts[0]}-{int(parts[1]):02d}-{int(parts[2]):02d}'
-        # 方法2: 链接前文 500 字符内找日期文本
-        if not date_fmt:
-            seg = full[max(0, m.start()-500):m.start()+100]
-            dm2 = re.search(r'(20\d{2})[-/年](\d{1,2})[-/月](\d{1,2})', seg)
-            if dm2:
-                date_fmt = f'{dm2.group(1)}-{int(dm2.group(2)):02d}-{int(dm2.group(3)):02d}'
-        results.append({'title': title, 'url': url,
-                       'date': date_fmt, 'snippet': '', 'agency': '商务部', 'source': 'mofcom.gov.cn(直抓)'})
-    print(f'  商务部新闻/政策: {len(results)} 条候选')
-    return results[:20]
+        if not any(k in title for k in ACT_KW):
+            continue
+        seen.add(url)
+        results.append({'title': title, 'url': url, 'date': '',
+                        'snippet': '', 'agency': '商务部', 'source': 'mofcom.gov.cn(直抓)'})
+
+    # 仅保留 last_date 之后（无日期的保留，交 DeepSeek 按规则0b判断）
+    kept = [r for r in results if (not r['date']) or r['date'] >= last_date]
+    print(f'  商务部公告/新闻: {len(results)} 条候选 → last_date后 {len(kept)} 条')
+    return kept[:20]
 
 def mfa_search(last_date):
     """外交部发言人答记者问/例行记者会页直抓
@@ -641,7 +660,7 @@ def update_scrollbar(html_content, nodes, actions):
     # 匹配 <b>数字</b> 个日期节点
     html_content = re.sub(
         r'共 <b>\d+</b> 个日期节点.*?<b>\d+</b> 项动作[^<]*',
-        f'共 <b>{nodes}</b> 个日期节点 · <b>3</b> 场一轨对话 · <b>{actions}</b> 项动作（ITC仅收337终裁/排除令；不收个别商品反倾销/反补贴立案·初裁·延期·日落复审·反规避·令延续；不收吹风）· 数据截至 {TODAY_CN}',
+        f'共 <b>{nodes}</b> 个日期节点 · <b>3</b> 场一轨对话 · <b>{actions}</b> 项动作（美方个别商品AD/CVD立案·初裁·延期·日落复审·反规避·令延续不收；ITC仅收337终裁/排除令；中方对美贸易救济收录；不收吹风表态）· 数据截至 {TODAY_CN}',
         html_content
     )
     # 更新 header range
@@ -915,6 +934,19 @@ def main():
         state_file = get_github_file('.workbuddy/state.json')
         put_github_file('.workbuddy/state.json', json.dumps(state, ensure_ascii=False, indent=2), state_file['sha'], f'update state - no new events ({TODAY})')
         print('本轮无新正式动作，state.json last_date 已更新')
+        # 9/10修正: 即使无新事件也同步 header/scrollbar 日期，避免"时间范围"与"数据截至"不一致
+        # （曾出现: 时间范围止于9月9日 而 数据截至 9月4日——update_scrollbar 只在有新增时才调用）
+        try:
+            idx_file = get_github_file('index.html')
+            cur = base64.b64decode(idx_file['content']).decode('utf-8')
+            fixed = update_scrollbar(cur, state.get('date_nodes', 0), state.get('action_count', 0))
+            if fixed != cur:
+                put_github_file('index.html', fixed, idx_file['sha'], f'sync header/scrollbar date ({TODAY})')
+                print('index.html header/scrollbar 日期已同步')
+            else:
+                print('index.html header/scrollbar 已是最新，无需推送')
+        except Exception as e:
+            print(f'index.html 日期同步失败(不影响本轮): {e}')
     
     print(f'=== 完成 ({TODAY}) ===')
 
