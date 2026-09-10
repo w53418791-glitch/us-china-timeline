@@ -333,12 +333,29 @@ def reverse_check_leads(reverse_leads, last_date):
     命中官方条目才返回（作为补录候选）；公众号本身不能作为收录依据"""
     if not reverse_leads:
         return []
+    # 泛词不作为反查匹配依据：防止 "Iran"/"sanctions"/"OFAC" 等通用词命中无关文件
+    # （9/10 实测: 线索含关键词 Iran 时误命中 FR Doc 2026-18461「Iranian Transactions and
+    #  Sanctions Regulations」——该规则实为伊朗民航许可停用，与中国无关）
+    GENERIC_KW = {'iran', 'iranian', 'sanction', 'sanctions', 'designation', 'designations',
+                  'ofac', 'china', 'chinese', 'export', 'control', 'controls', 'tariff',
+                  'tariffs', 'rule', 'notice', 'order', 'entity', 'entities', 'list',
+                  'regulation', 'regulations', 'review', 'action', 'sdn', 'treasury',
+                  'commerce', 'department', 'trade', 'import', 'measure', 'measures'}
+
+    def _specific(kws):
+        """只保留有区分度的特征词（剔除泛词与短词）"""
+        return [k for k in kws if len(k) > 3 and k.lower().strip() not in GENERIC_KW]
+
     found = []
     print(f'--- 公众号反查: {len(reverse_leads)} 条线索 ---')
     for lead in reverse_leads[:5]:
         keywords = lead.get('keywords') or []
         title_hint = lead.get('动作摘要', '')[:40]
         if not keywords:
+            continue
+        spec_keywords = _specific(keywords)
+        if not spec_keywords:
+            print(f'  ⏭ 线索关键词均过于泛化, 无法反查: {title_hint}')
             continue
         hit = None
         # 1) FR API 关键词搜索（美方动作主通道）
@@ -355,7 +372,7 @@ def reverse_check_leads(reverse_leads, last_date):
                     data = json.loads(r.read().decode())
                 for doc in data.get('results', [])[:3]:
                     title = doc.get('title', '')
-                    if any(k.lower() in title.lower() for k in keywords if len(k) > 3):
+                    if any(k.lower() in title.lower() for k in spec_keywords):
                         hit = {
                             'title': title,
                             'url': doc.get('html_url', ''),
@@ -370,7 +387,33 @@ def reverse_check_leads(reverse_leads, last_date):
                     break
             except Exception as e:
                 print(f'    反查FR失败({kw}): {str(e)[:60]}')
-        # 2) 白宫 actions 关键词匹配
+        # 2) OFAC recent-actions 页扫描（9/10补盲：OFAC SDN 常在官网先挂、FR 刊登滞后数天，
+        #    仅查 FR 会漏掉当日新制裁。线索含制裁类词时逐页核查是否涉中国/香港主体）
+        if not hit and any(k in title_hint for k in ['制裁', 'SDN', 'OFAC', '财政部', '列入清单', 'sanction', '实体', '船舶']):
+            try:
+                oa_html = fetch_url('https://ofac.treasury.gov/recent-actions')
+                if oa_html:
+                    for om in re.finditer(r'<a href="(/recent-actions/\d{8})"[^>]*>(.*?)</a>', oa_html, re.DOTALL):
+                        o_url = 'https://ofac.treasury.gov' + om.group(1)
+                        o_date = om.group(1)[-8:]
+                        o_date_fmt = f'{o_date[:4]}-{o_date[4:6]}-{o_date[6:]}'
+                        if o_date_fmt < last_date:
+                            continue  # 只增不改：窗口外不看
+                        o_title = re.sub(r'<[^>]+>', '', om.group(2)).strip().replace('&#039;', "'")
+                        # 公告标题多为类别名（Iran-related Designations 等），需进正文核查涉华实体
+                        page = fetch_url(o_url) or ''
+                        ptext = re.sub(r'<[^>]+>', ' ', re.sub(r'<script.*?</script>', ' ', page, flags=re.DOTALL))
+                        ptext = re.sub(r'\s+', ' ', ptext)
+                        cn_hit = any(x in ptext for x in ['China', 'Chinese', 'Hong Kong', 'Macau', 'Shenzhen', 'Shandong'])
+                        kw_hit = any(k.lower() in ptext.lower() for k in spec_keywords)
+                        if cn_hit and kw_hit:
+                            hit = {'title': f'{o_title}（涉华实体）', 'url': o_url, 'date': o_date_fmt,
+                                   'snippet': ptext[:200], 'agency': '美国财政部OFAC(反查命中)',
+                                   'source': 'ofac.treasury.gov(公众号反查)', 'reverse_hint': title_hint}
+                            break
+            except Exception as e:
+                print(f'    反查OFAC失败: {str(e)[:60]}')
+        # 3) 白宫 actions 关键词匹配
         if not hit and any(k in title_hint for k in ['公告', '关税', 'proclamation', 'tariff', '行政令', 'executive']):
             try:
                 wh_html = fetch_url('https://www.whitehouse.gov/presidential-actions/')
@@ -381,7 +424,7 @@ def reverse_check_leads(reverse_leads, last_date):
                             continue
                         t = re.sub(r'<[^>]+>', '', am.group(2)).strip()
                         tl = t.lower()
-                        if any(k.lower() in tl for k in keywords if len(k) > 3):
+                        if any(k.lower() in tl for k in spec_keywords):
                             hit = {'title': t, 'url': am.group(1), 'date': '',
                                    'snippet': '', 'agency': '白宫(反查命中)',
                                    'source': 'whitehouse.gov(公众号反查)', 'reverse_hint': title_hint}
