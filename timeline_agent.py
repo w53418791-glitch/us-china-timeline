@@ -655,6 +655,22 @@ def append_events(html_content, new_events):
     html_content = html_content.replace(anchor, events_js, 1)  # 只替换第一个
     return html_content
 
+def count_events(html_content):
+    """从 HTML 的 EVENTS 数组直接统计 (日期节点数, 事件总数)
+    9/11修正: 必须兼容两种日期写法 date:"..." 与 "date": "..."（曾漏算4条导致计数错乱）；
+    且一律以 HTML 实际内容为准，不依赖 state.json 的累加值（曾因手工补录未同步 state
+    导致自动轮次用旧计数覆盖正确计数）"""
+    start = html_content.find('const EVENTS')
+    if start < 0:
+        return 0, 0
+    end = html_content.find('\n];', start)
+    body = html_content[start:end if end > 0 else len(html_content)]
+    d1 = re.findall(r'date:"(20\d\d-\d\d-\d\d)"', body)
+    d2 = re.findall(r'"date":\s*"(20\d\d-\d\d-\d\d)"', body)
+    all_dates = d1 + d2
+    return len(set(all_dates)), len(all_dates)
+
+
 def update_scrollbar(html_content, nodes, actions):
     """更新 scrollbar-hint 计数"""
     # 匹配 <b>数字</b> 个日期节点
@@ -905,12 +921,9 @@ def main():
         except Exception as e:
             print(f'  JS 自检异常(继续): {e}')
         
-        # 更新计数
-        new_nodes = date_nodes  # 需要根据新事件计算
-        new_actions = action_count + len(new_events)
-        for e in new_events:
-            if e.get('date') and e['date'] not in html[:html.rfind('];')]:  # 粗略检查新日期
-                new_nodes += 1
+        # 更新计数（9/11: 一律从最终 HTML 实际统计，兼容两种日期写法，不再用 state 累加）
+        new_nodes, new_actions = count_events(html)
+        print(f'重新统计: {new_actions} 条事件 / {new_nodes} 个日期节点')
         
         html = update_scrollbar(html, new_nodes, new_actions)
         
@@ -935,18 +948,26 @@ def main():
         put_github_file('.workbuddy/state.json', json.dumps(state, ensure_ascii=False, indent=2), state_file['sha'], f'update state - no new events ({TODAY})')
         print('本轮无新正式动作，state.json last_date 已更新')
         # 9/10修正: 即使无新事件也同步 header/scrollbar 日期，避免"时间范围"与"数据截至"不一致
-        # （曾出现: 时间范围止于9月9日 而 数据截至 9月4日——update_scrollbar 只在有新增时才调用）
+        # 9/11修正: 计数一律从 HTML 实际统计（不能用 state 累加值，否则会覆盖手工补录后的正确计数）
         try:
             idx_file = get_github_file('index.html')
             cur = base64.b64decode(idx_file['content']).decode('utf-8')
-            fixed = update_scrollbar(cur, state.get('date_nodes', 0), state.get('action_count', 0))
+            real_nodes, real_actions = count_events(cur)
+            fixed = update_scrollbar(cur, real_nodes, real_actions)
             if fixed != cur:
-                put_github_file('index.html', fixed, idx_file['sha'], f'sync header/scrollbar date ({TODAY})')
-                print('index.html header/scrollbar 日期已同步')
+                put_github_file('index.html', fixed, idx_file['sha'], f'sync header/scrollbar ({TODAY})')
+                print(f'index.html header/scrollbar 已同步 ({real_nodes}节点/{real_actions}动作)')
             else:
-                print('index.html header/scrollbar 已是最新，无需推送')
+                print(f'index.html header/scrollbar 已是最新 ({real_nodes}节点/{real_actions}动作)')
+            # state 计数与 HTML 对齐（防止累加值漂移）
+            if state.get('date_nodes') != real_nodes or state.get('action_count') != real_actions:
+                state['date_nodes'] = real_nodes
+                state['action_count'] = real_actions
+                st_file = get_github_file('.workbuddy/state.json')
+                put_github_file('.workbuddy/state.json', json.dumps(state, ensure_ascii=False, indent=2), st_file['sha'], f'fix state counts ({TODAY})')
+                print(f'state.json 计数已校正为 {real_nodes}/{real_actions}')
         except Exception as e:
-            print(f'index.html 日期同步失败(不影响本轮): {e}')
+            print(f'index.html 日期/计数同步失败(不影响本轮): {e}')
     
     print(f'=== 完成 ({TODAY}) ===')
 
