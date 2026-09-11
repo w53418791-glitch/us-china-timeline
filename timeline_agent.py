@@ -136,7 +136,9 @@ def federal_register_search(last_date):
     params = {
         'conditions[term]': 'China',
         'conditions[publication_date][gte]': last_date,
-        'conditions[agencies][]': ['commerce-department', 'international-trade-commission', 'international-trade-administration', 'defense-department', 'foreign-assets-control-office', 'trade-representative-office-of-united-states', 'treasury-department', 'homeland-security-department'],
+        # 9/11新增 federal-communications-commission：FCC 规则（如 FCC 26-50 设备授权零部件漏洞，FR Doc 2026-18535）
+        # 此前遗漏 FCC 机构，导致该类最终规则无法进入候选池
+        'conditions[agencies][]': ['commerce-department', 'international-trade-commission', 'international-trade-administration', 'defense-department', 'foreign-assets-control-office', 'trade-representative-office-of-united-states', 'treasury-department', 'homeland-security-department', 'federal-communications-commission'],
         'per_page': 30,
         'order': 'newest'
     }
