@@ -352,6 +352,7 @@ def mofcom_search(last_date):
             continue
         if any(k in title for k in BAD_KW):
             continue
+        snip = ''
         if not any(k in title for k in US_KW):
             # 9/23修正：标题不含"美国"≠不涉美——公告的涉美内容常只写在正文里。
             # 事故：商务部公告2026年第40号《关于调整〈向特定国家（地区）出口易制毒化学品
@@ -364,8 +365,13 @@ def mofcom_search(last_date):
             if not any(k in title for k in CTRL_KW):
                 continue  # 非涉美案件不收
             body = _strip_html(_fetch_auto_encode(url))
-            if not any(k in body for k in US_KW):
+            hit = next((k for k in US_KW if k in body), '')
+            if not hit:
                 continue  # 正文亦无涉美表述 → 确非涉美，不收
+            # 9/23：正文已抓取，顺手截取涉美上下文写入 snippet——
+            # 否则下游 LLM 只看到一条不含"美国"的标题，既难判相关性也写不出据实的"分析"
+            i = body.find(hit)
+            snip = '…' + body[max(0, i - 60): i + 140] + '…'
         if not any(k in title for k in ACT_KW):
             continue
         # 日期：<i>MM-DD</i>（无年份，按 2026 处理）
@@ -373,7 +379,7 @@ def mofcom_search(last_date):
         date_fmt = f'2026-{int(dt.group(1)):02d}-{int(dt.group(2)):02d}' if dt else ''
         seen.add(url)
         results.append({'title': title, 'url': url, 'date': date_fmt,
-                        'snippet': '', 'agency': '商务部(公告)', 'source': 'mofcom.gov.cn/首页公告(直抓)'})
+                        'snippet': snip, 'agency': '商务部(公告)', 'source': 'mofcom.gov.cn/首页公告(直抓)'})
 
     # --- B. xwfb 新闻发布栏目（新闻稿，非公告）---
     for m in re.finditer(r'<a[^>]+href="([^"]+)"[^>]*>([^<]{10,120})</a>', news or ''):
