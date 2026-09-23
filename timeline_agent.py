@@ -8,7 +8,7 @@
 - 推送：GitHub Contents API PUT
 """
 
-import os, json, re, base64, urllib.request, urllib.parse, time
+import os, json, re, base64, urllib.request, urllib.parse, urllib.error, time
 from datetime import datetime, date
 
 # ========== 配置 ==========
@@ -633,6 +633,26 @@ def put_github_file(path, content, sha, message):
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.status
 
+def trigger_pages_build():
+    """主动触发 GitHub Pages 重建。
+    9/23新增：改用内置 GITHUB_TOKEN 后必须显式调用——GitHub 限制"由 GITHUB_TOKEN
+    产生的 push 不会创建新的 workflow run"，因此内置令牌推送的 commit 不会自动触发
+    Pages 构建（本仓库 Pages 为 legacy 分支部署），不补这一刀线上页面就不会更新。"""
+    url = f'https://api.github.com/repos/{REPO}/pages/builds'
+    req = urllib.request.Request(url, method='POST', data=b'{}', headers={
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'timeline-agent'
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            print(f'  Pages 重建已触发 (HTTP {r.status})')
+            return True
+    except Exception as e:
+        print(f'  Pages 重建触发失败(内容已推送，可稍后手动重建): {str(e)[:120]}')
+        return False
+
 def append_events(html_content, new_events):
     """在 EVENTS 数组末尾追加新事件"""
     # 构建 JS 对象字符串
@@ -700,8 +720,18 @@ def main():
     action_count = state.get('action_count', 56)
     print(f'last_date={last_date}, nodes={date_nodes}, actions={action_count}')
     
-    # 2. 读方法论
-    methodology_file = get_github_file('检索逻辑与方法论.md')
+    # 2. 读方法论（9/23新增：令牌失效时给出明确诊断，而不是只抛 401 堆栈——
+    #    此前 TIMELINE_GITHUB_TOKEN 失效导致连续 11 轮静默失败）
+    try:
+        methodology_file = get_github_file('检索逻辑与方法论.md')
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            print('❌ 致命错误：GITHUB_TOKEN 无效 (HTTP 401 Unauthorized)')
+            print('   排查：workflow 是否已设 permissions: contents: write；')
+            print('   或仓库 Settings → Secrets → TIMELINE_GITHUB_TOKEN 是否已过期/吊销。')
+        else:
+            print(f'❌ 致命错误：读取方法论文档失败 HTTP {e.code}')
+        raise SystemExit(1)
     methodology = base64.b64decode(methodology_file['content']).decode('utf-8')
     print(f'方法论长度: {len(methodology)} chars')
     
@@ -932,6 +962,7 @@ def main():
         # 推送 index.html
         status = put_github_file('index.html', html, index_file['sha'], f'auto-update: {len(new_events)} new events ({TODAY})')
         print(f'推送 index.html: {status}')
+        trigger_pages_build()
         
         # 更新 state.json
         state['last_date'] = TODAY
@@ -959,6 +990,7 @@ def main():
             if fixed != cur:
                 put_github_file('index.html', fixed, idx_file['sha'], f'sync header/scrollbar ({TODAY})')
                 print(f'index.html header/scrollbar 已同步 ({real_nodes}节点/{real_actions}动作)')
+                trigger_pages_build()
             else:
                 print(f'index.html header/scrollbar 已是最新 ({real_nodes}节点/{real_actions}动作)')
             # state 计数与 HTML 对齐（防止累加值漂移）
