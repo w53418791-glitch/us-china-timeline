@@ -31,6 +31,9 @@ def read_state():
 
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'}
 
+MONTHS = {'January':1,'February':2,'March':3,'April':4,'May':5,'June':6,'July':7,
+          'August':8,'September':9,'October':10,'November':11,'December':12}
+
 def fetch_url(url, timeout=20):
     """带 UA 抓取网页文本"""
     try:
@@ -40,6 +43,18 @@ def fetch_url(url, timeout=20):
     except Exception as e:
         print(f'  抓取失败 [{url[:60]}]: {str(e)[:80]}')
         return ''
+
+def _strip_html(html):
+    """去标签取纯文本（用于正文关键词核验）"""
+    if not html:
+        return ''
+    t = re.sub(r'<script[\s\S]*?</script>', ' ', html, flags=re.I)
+    t = re.sub(r'<style[\s\S]*?</style>', ' ', t, flags=re.I)
+    t = re.sub(r'<[^>]+>', ' ', t)
+    for a, b in [('&nbsp;', ' '), ('&#8217;', "'"), ('&#8211;', '-'),
+                 ('&#8220;', '"'), ('&#8221;', '"'), ('&amp;', '&'), ('&#xa0;', ' ')]:
+        t = t.replace(a, b)
+    return re.sub(r'\s+', ' ', t).strip()
 
 def whitehouse_search(last_date):
     """白宫 presidential-actions 页直抓（proclamation/行政令/备忘录一手源）"""
@@ -82,6 +97,63 @@ def whitehouse_search(last_date):
                 filtered.append(r)
     print(f'  白宫 actions: {len(filtered)}/{len(results)} 条涉华/涉管制候选 (last_date={last_date} 后)')
     return filtered[:15]
+
+def whitehouse_bills_search(last_date):
+    """白宫 Briefings & Statements 直抓（法案签署 'Signed into Law' 专用通道）
+
+    9/23 新增。背景：白宫"法案签署"声明发布在 /briefing-room/statements-releases/
+    （正文页落在 /briefings-statements/YYYY/MM/...），**不在 /presidential-actions/ 下**，
+    原 whitehouse_search 完全不覆盖该栏目；且标题形如
+    'Congressional Bill H.R. 5334 Signed into Law' 不含任何涉华/涉管制关键词，
+    即便抓到也会被 wh_keys 过滤掉。双重盲区导致 9/18 签署的
+    《2026年林赛·O·格雷厄姆制裁俄罗斯与伊朗法案》(H.R. 5334) 漏收——
+    该法案第113条授权对俄原油/天然气前五大进口国（含中国）加征最高100%次级关税。
+
+    过滤逻辑：法案标题普遍不含"中国"，故对候选回源抓正文，用"涉华"或
+    "对俄/伊次级制裁"组合词判定相关性（后者正是中国被间接波及的路径）。
+    """
+    html = fetch_url('https://www.whitehouse.gov/briefing-room/statements-releases/')
+    if not html:
+        return []
+    results = []
+    seen = set()
+    for li in re.findall(r'<li[^>]*data-wp-key[^>]*>(.*?)</li>', html, re.DOTALL):
+        am = re.search(
+            r'<a href="(https://www\.whitehouse\.gov/briefings-statements/(\d{4})/(\d{2})/[^"]+?)"[^>]*>(.*?)</a>',
+            li, re.DOTALL)
+        if not am:
+            continue
+        url, yr, mo, raw = am.group(1), am.group(2), am.group(3), am.group(4)
+        title = _strip_html(raw)
+        if 'signed into law' not in title.lower():
+            continue  # 本通道只收法案签署
+        if url in seen:
+            continue
+        # 日期：优先 <time>，缺失则退到 URL 年-月（交由 DeepSeek 按规则0b处理）
+        date_fmt = ''
+        tm = re.search(r'<time[^>]*>([^<]+)</time>', li)
+        if tm:
+            dm = re.search(r'(\w+) (\d{1,2}), (\d{4})', tm.group(1))
+            if dm:
+                date_fmt = f'{dm.group(3)}-{MONTHS.get(dm.group(1), 0):02d}-{int(dm.group(2)):02d}'
+        if not date_fmt:
+            date_fmt = f'{yr}-{mo}-01'
+        if date_fmt < last_date:
+            continue
+        seen.add(url)
+        # 正文核验相关性（标题不含中国，必须读正文）
+        body = _strip_html(fetch_url(url))
+        low = body.lower()
+        rel = ('china' in low or 'chinese' in low
+               or ('tariff' in low and ('russia' in low or 'iran' in low))
+               or ('sanction' in low and ('russia' in low or 'iran' in low)))
+        if not rel:
+            continue
+        results.append({'title': title, 'url': url, 'date': date_fmt,
+                        'snippet': body[:400], 'agency': '白宫（法案签署）',
+                        'source': 'whitehouse.gov/statements-releases(直抓)'})
+    print(f'  白宫法案签署: {len(results)} 条 (last_date={last_date} 后)')
+    return results[:10]
 
 def ofac_search(last_date):
     """OFAC recent-actions 页直抓（SDN/制裁公告一手源）"""
@@ -281,7 +353,19 @@ def mofcom_search(last_date):
         if any(k in title for k in BAD_KW):
             continue
         if not any(k in title for k in US_KW):
-            continue  # 非涉美案件不收
+            # 9/23修正：标题不含"美国"≠不涉美——公告的涉美内容常只写在正文里。
+            # 事故：商务部公告2026年第40号《关于调整〈向特定国家（地区）出口易制毒化学品
+            # 管理目录〉的公告》(9/22) 标题无"美国"，正文却明定"向美国、墨西哥、加拿大出口
+            # ……应申请许可"，被本条标题级过滤挡掉，漏收。
+            # 修正：对疑似出口管制/管制清单/贸易救济类公告，回源抓正文核验涉美后才收。
+            CTRL_KW = ['出口管制', '两用物项', '易制毒', '管制名单', '管控名单', '管制清单',
+                       '出口许可', '反制', '不可靠实体', '贸易救济', '反倾销', '反补贴',
+                       '进口管理', '出口管理', '配额']
+            if not any(k in title for k in CTRL_KW):
+                continue  # 非涉美案件不收
+            body = _strip_html(_fetch_auto_encode(url))
+            if not any(k in body for k in US_KW):
+                continue  # 正文亦无涉美表述 → 确非涉美，不收
         if not any(k in title for k in ACT_KW):
             continue
         # 日期：<i>MM-DD</i>（无年份，按 2026 处理）
@@ -742,6 +826,8 @@ def main():
     print('--- 美方官方源直抓 ---')
     wh = whitehouse_search(last_date)
     all_results.extend(wh)
+    wb = whitehouse_bills_search(last_date)   # 9/23新增：法案签署通道（H.R. 5334 漏收修正）
+    all_results.extend(wb)
     of = ofac_search(last_date)
     all_results.extend(of)
     it = itc_search(last_date)
