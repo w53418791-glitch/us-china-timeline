@@ -155,6 +155,15 @@ def whitehouse_bills_search(last_date):
     print(f'  白宫法案签署: {len(results)} 条 (last_date={last_date} 后)')
     return results[:10]
 
+# 10/8新增：涉华主体线索词——用于 OFAC 公告正文核验（OFAC 标题为通用类别名，
+# 不含 China，必须回源正文才能判断名单中是否有中国主体）
+CN_HINT = ['china', 'chinese', 'hong kong', 'macao', 'macau', 'beijing', 'shanghai',
+           'shenzhen', 'guangzhou', 'guangdong', 'fujian', 'zhejiang', 'jiangsu',
+           'shandong', 'tianjin', 'chongqing', 'dalian', 'liaoning', 'henan',
+           'hebei', 'sichuan', 'hunan', 'hubei', 'anhui', 'xiamen', 'qingdao',
+           'zhoushan', 'foshan', 'xian', 'nanjing', 'hangzhou']
+
+
 def ofac_search(last_date):
     """OFAC recent-actions 页直抓（SDN/制裁公告一手源）"""
     html = fetch_url('https://ofac.treasury.gov/recent-actions')
@@ -174,7 +183,24 @@ def ofac_search(last_date):
         date_fmt = f'{datestr[:4]}-{datestr[4:6]}-{datestr[6:]}'
         # 仅取 last_date 之后的（OFAC 列表含历史）
         if date_fmt >= last_date:
-            results.append({'title': title, 'url': url, 'date': date_fmt, 'snippet': '', 'agency': '美国财政部OFAC', 'source': 'ofac.treasury.gov(直抓)'})
+            # 10/8修正：抓正文检出涉华主体并写入 snippet。
+            # 事故：OFAC 公告标题多为通用类别名（如 "Iran-related Designations and
+            # Designations Updates"），**不含 China**。此前 snippet 恒为空，候选只有
+            # 一个不带涉华信息的标题，DeepSeek 无从判断名单中是否躺着中国主体，
+            # 连续多轮一律误判"不相关"剔除——9/29、10/1 两批涉伊朗次级制裁
+            # （含北京润达森、赫世浦上海、上海睿弥、香港多实体及中国籍个人）
+            # 即因此全部漏收，实测候选进得去、结论却是 0 条。
+            snip = ''
+            try:
+                body = _strip_html(fetch_url(url))
+                low = body.lower()
+                hit = next((k for k in CN_HINT if k in low), '')
+                if hit:
+                    i = low.find(hit)
+                    snip = '…' + body[max(0, i - 80): i + 220] + '…'
+            except Exception:
+                pass
+            results.append({'title': title, 'url': url, 'date': date_fmt, 'snippet': snip, 'agency': '美国财政部OFAC', 'source': 'ofac.treasury.gov(直抓)'})
     print(f'  OFAC recent-actions: {len(results)} 条 (last_date={last_date} 后)')
     return results
 
@@ -437,6 +463,58 @@ def mfa_search(last_date):
                        'snippet': '', 'agency': '外交部', 'source': 'mfa.gov.cn(直抓)'})
     print(f'  外交部发言人: {len(results)} 条候选 (last_date={last_date} 后)')
     return results[:20]
+
+
+def mfa_zyxw_search(last_date):
+    """外交部「重要新闻」栏目直抓——元首/高层涉美外交（一轨对话）一手源
+    10/8新增（重大盲区修复）：白宫 statements-releases 栏目只承载行政令/公告/
+    法案签署/总统致辞，**元首会晤类通稿不在其中**（美方未就习近平访美发布声明），
+    而外交部「重要新闻」完整承载元首会谈/访问/通话通稿。此前该通道完全缺失，
+    导致 2026-09-23~25 习近平对美国国事访问（含白宫元首会谈、八点成果共识，
+    属时间线"一轨对话"最高价值事件）在 9/24—10/7 约 42 轮自动检索中零命中，
+    最终须人工补录。
+    注：元首会谈/访问/通话属**实质外交动作**，不受 E15「表态类不收录」约束
+    （E15 针对的是"答记者问/例行记者会/发言人回应"等口头表态）。
+    条目形态: <a href="./202609/t20260925_12031134.shtml">标题（2026-09-25）</a>
+    """
+    html = _fetch_auto_encode('https://www.mfa.gov.cn/web/zyxw/')
+    if not html:
+        print('  外交部重要新闻(zyxw): 抓取失败(跳过)')
+        return []
+    results = []
+    seen = set()
+    HEAD_KW = ['习近平', '李强', '韩正', '王毅', '何立峰', '丁薛祥', '赵乐际']
+    US_KW = ['美国', '中美', '特朗普', '美方']
+    ACT_KW = ['会谈', '会晤', '通话', '访问', '会见', '磋商', '茶叙', '国宴',
+              '欢迎仪式', '成果共识', '联合声明']
+    for m in re.finditer(r'<a[^>]+href="\./(2026\d\d/t\d+_\d+\.shtml)"[^>]*>([^<]{6,140})</a>', html):
+        rel, raw = m.group(1), m.group(2)
+        title = re.sub(r'\s+', ' ', raw).strip()
+        url = 'https://www.mfa.gov.cn/web/zyxw/' + rel
+        if url in seen:
+            continue
+        # 日期：标题末尾的（2026-MM-DD）
+        dm = re.search(r'（(2026-\d{2}-\d{2})）', title)
+        if not dm:
+            continue
+        date_fmt = dm.group(1)
+        if date_fmt < last_date:
+            continue
+        clean = re.sub(r'（2026-\d{2}-\d{2}）\s*$', '', title).strip()
+        # 元首/高层外交 + 涉美 + 实质动作（三条件）
+        if not any(k in clean for k in HEAD_KW):
+            continue
+        if not any(k in clean for k in US_KW):
+            continue
+        if not any(k in clean for k in ACT_KW):
+            continue
+        seen.add(url)
+        results.append({'title': clean, 'url': url, 'date': date_fmt,
+                        'snippet': '', 'agency': '外交部重要新闻',
+                        'source': 'mfa.gov.cn/web/zyxw(直抓)',
+                        'kind': 'dialog'})
+    print(f'  外交部重要新闻(zyxw): {len(results)} 条元首/高层涉美外交候选 (last_date={last_date} 后)')
+    return results[:15]
 
 # ========== 2b. 公众号反查（reverse check） ==========
 def reverse_check_leads(reverse_leads, last_date):
@@ -783,12 +861,33 @@ def count_events(html_content):
     return len(set(all_dates)), len(all_dates)
 
 
+def count_dialogs(html_content):
+    """从 EVENTS 数组统计「一轨对话」(type=dialog) 条数。
+
+    10/8修正：**必须兼容 `type:"dialog"` 与 `"type": "dialog"` 两种写法**——
+    与 count_events 的日期字段是同一类陷阱（见 E17 教训）。实测 index.html 中
+    4 条 dialog 里 2 条用无引号键、2 条用带引号键，只写一种正则会漏算一半
+    （曾因此把 scrollbar 的"一轨对话"从硬编码 3 改成了错误的 2）。
+    """
+    start = html_content.find('const EVENTS')
+    if start < 0:
+        return 0
+    end = html_content.find('\n];', start)
+    body = html_content[start:end if end > 0 else len(html_content)]
+    forms = [r'type\s*:\s*"dialog"', r'"type"\s*:\s*"dialog"',
+             r"type\s*:\s*'dialog'", r"'type'\s*:\s*'dialog'"]
+    return sum(len(re.findall(p, body)) for p in forms)
+
+
 def update_scrollbar(html_content, nodes, actions):
     """更新 scrollbar-hint 计数"""
+    # 10/8修正：一轨对话数原为硬编码 3，与实际 dialog 事件数脱节。
+    # 改为从 EVENTS 动态统计（兼容两种引号/键写法，见 count_dialogs）。
+    dialogs = count_dialogs(html_content)
     # 匹配 <b>数字</b> 个日期节点
     html_content = re.sub(
         r'共 <b>\d+</b> 个日期节点.*?<b>\d+</b> 项动作[^<]*',
-        f'共 <b>{nodes}</b> 个日期节点 · <b>3</b> 场一轨对话 · <b>{actions}</b> 项动作（美方个别商品AD/CVD立案·初裁·延期·日落复审·反规避·令延续不收；ITC仅收337终裁/排除令；中方对美贸易救济收录；不收吹风表态）· 数据截至 {TODAY_CN}',
+        f'共 <b>{nodes}</b> 个日期节点 · <b>{dialogs}</b> 场一轨对话 · <b>{actions}</b> 项动作（美方个别商品AD/CVD立案·初裁·延期·日落复审·反规避·令延续不收；ITC仅收337终裁/排除令；中方对美贸易救济收录；不收吹风表态）· 数据截至 {TODAY_CN}',
         html_content
     )
     # 更新 header range
@@ -849,6 +948,10 @@ def main():
     print('--- 中方官方源直抓 ---')
     cn_official_results = mofcom_search(last_date) + mfa_search(last_date)
     all_results.extend(cn_official_results)
+    # 10/8新增：外交部「重要新闻」= 元首/高层涉美外交（一轨对话）通道
+    # 事故：9/23-25 习近平访美全程无通道，42 轮零命中，须人工补录
+    mfa_z = mfa_zyxw_search(last_date)
+    all_results.extend(mfa_z)
 
     # 3d. 公众号 crosscheck 检索（5个公众号：合规观澜/贸易夜航/合规视点/聆听美讯/USA yesterday）
     #     结果标记 source=gzh-*，只作分析引用素材，不作事件收录源
