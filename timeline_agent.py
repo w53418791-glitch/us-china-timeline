@@ -190,14 +190,58 @@ def ofac_search(last_date):
             # 连续多轮一律误判"不相关"剔除——9/29、10/1 两批涉伊朗次级制裁
             # （含北京润达森、赫世浦上海、上海睿弥、香港多实体及中国籍个人）
             # 即因此全部漏收，实测候选进得去、结论却是 0 条。
+            #
+            # 10/9再修正 ★：仅抓"第一处命中词的 ±80/220 字"仍不够——实测 10/08
+            # 那批公告的第一处命中是香港尖沙咀地址，DeepSeek 看到"仅一个香港地址"
+            # 便判"暂不收，建议下轮回源核验"，而正文里其实还躺着**青岛的和創國際
+            # 集團、深圳的順航船舶管理、China flag 的 AVA 6 油轮**等大陆主体。
+            # 现改为：列出**全部** CN_HINT 命中（去重、限量）+ 分节归属 + 中文名，
+            # 并显式标注是否含中国大陆主体，让 LLM 拿到可判定的完整证据。
             snip = ''
             try:
                 body = _strip_html(fetch_url(url))
                 low = body.lower()
-                hit = next((k for k in CN_HINT if k in low), '')
-                if hit:
-                    i = low.find(hit)
-                    snip = '…' + body[max(0, i - 80): i + 220] + '…'
+                # 3a. 分节归属（added / changes / deletions）
+                secs = re.findall(r'(The following [^.\n]{0,130}\.)', body)
+                sec_txt = ' | '.join(re.sub(r'\s+', ' ', s).strip()[:80] for s in secs[:3])
+                # 3b. 全部命中上下文（去重、限量 6 处）
+                frags = []
+                taken = []
+                for k in CN_HINT:
+                    for m in re.finditer(re.escape(k), low):
+                        p = m.start()
+                        if any(abs(p - q) < 120 for q in taken):
+                            continue
+                        taken.append(p)
+                        frags.append(re.sub(r'\s+', ' ', body[max(0, p - 70): p + 130]).strip())
+                        if len(frags) >= 6:
+                            break
+                    if len(frags) >= 6:
+                        break
+                # 3c. 注册地类型判定（区分大陆 / 港 / 澳）
+                mainland = [k for k in CN_HINT
+                            if k not in ('china', 'chinese', 'hong kong', 'macao', 'macau')
+                            and k in low]
+                has_hk = ('hong kong' in low)
+                has_mo = ('macao' in low or 'macau' in low)
+                # 3d. 中文名（OFAC 对新列实体附中文繁体/简体名）
+                zh = re.findall(r'Chinese (?:Traditional|Simplified):\s*([\u4e00-\u9fff·]{2,30})', body)
+                zh = list(dict.fromkeys(zh))[:8]
+                # 3e. 人员条目：形如 "XXX, Li (a.k.a. ...)" 的中国籍个人
+                persons = re.findall(r'([A-Z][A-Z\s\-]{2,30}),\s*(?:Li|Wang|Zhang|Chen|Liu|Yang|Huang|Zhao|Wu|Zhou|Xu|Sun|Ma|Zhu|Hu|Guo|He|Gao|Lin|Luo|Zheng|Liang|Xie|Tang|Han|Cao|Feng|Deng|Peng|Jiang|Cai|Pan|Tian|Dong|Xiao|Ye|Yu|Lu|Du|Wei|Jia|Fu|Shen|Zhong|Lai|Qin|Xue|Yin|Bai|Duan|Zou|Shi|Qiu|Meng|Xiong|Hou|Long|Wan|Gu|Yan|Qian|Tan|Kong|Shao|Hong|Cheng|Wen|Xiong)\b', body)
+                persons = list(dict.fromkeys(persons))[:6]
+
+                parts = [f'[OFAC公告正文核验] 分节: {sec_txt}' if sec_txt else '[OFAC公告正文核验]']
+                parts.append(f'涉华主体线索: ' +
+                             f'中国大陆地域词={mainland or "无"}；Hong Kong={"有" if has_hk else "无"}；'
+                             f'Macao={"有" if has_mo else "无"}')
+                if zh:
+                    parts.append('中文名: ' + ' / '.join(zh))
+                if persons:
+                    parts.append('中国籍个人(疑似): ' + ' / '.join(persons))
+                if frags:
+                    parts.append('正文片段: ' + ' ‖ '.join(frags))
+                snip = ' '.join(parts)
             except Exception:
                 pass
             results.append({'title': title, 'url': url, 'date': date_fmt, 'snippet': snip, 'agency': '美国财政部OFAC', 'source': 'ofac.treasury.gov(直抓)'})
